@@ -1,0 +1,82 @@
+[
+  {
+    "query": "the HRM prototype on the lab bench isn't reporting heart rate any more. can you connect to it and see whether the measurement characteristic is still notifying, or whether it's the firmware that stopped publishing? board's on the shared rig, not plugged into my machine",
+    "should_trigger": true
+  },
+  {
+    "query": "i need to read the battery level off device handle dev_42 and tell me the percentage. it's on our agent at ws://10.0.0.7:8080/agent",
+    "should_trigger": true
+  },
+  {
+    "query": "write 0x01 to the control point on the sensor to trigger a reset — service 180d characteristic 2a39, with response please",
+    "should_trigger": true
+  },
+  {
+    "query": "can you dump the full GATT tree for whatever peripheral is advertising as \"Warsha HRM\" and give me a table of every characteristic with its properties? i want to know what's actually readable before i write any client code",
+    "should_trigger": true
+  },
+  {
+    "query": "set up a hardware-in-the-loop check for CI: it should scan for the dev board, subscribe to notifications for 30s, and fail the build if fewer than 20 arrive. run it against the simulator first so it's deterministic",
+    "should_trigger": true
+  },
+  {
+    "query": "i want to correlate what the firmware prints on serial against the BLE writes that caused it. is there a way to capture both with timestamps so i can interleave them?",
+    "should_trigger": true
+  },
+  {
+    "query": "my colleague says the beacon in the far lab is stuck. i'm working from home today — can i still poke at it over the network, or do i need to be physically near it?",
+    "should_trigger": true
+  },
+  {
+    "query": "collect 50 notifications from 2a37 as jsonl and dump them to a file so i can plot them later",
+    "should_trigger": true
+  },
+  {
+    "query": "something's holding a lease on sim-lease-1 and my connect keeps failing with exit 6. figure out who has it and whether it's mine",
+    "should_trigger": true
+  },
+  {
+    "query": "our CI job that talks to the bluetooth rig started returning exit code 8 on a write last night and the retry logic just runs it again. is that safe? what should it do instead",
+    "should_trigger": true
+  },
+  {
+    "query": "my airpods keep disconnecting from my macbook every few minutes, especially on zoom calls. i've tried forgetting the device and re-pairing twice. any idea what's going on with the bluetooth stack on sonoma?",
+    "should_trigger": false
+  },
+  {
+    "query": "write me a kotlin function for our android app that subscribes to a BLE characteristic using Kable and exposes it as a Flow, with proper lifecycle handling so it unsubscribes when the composable leaves composition",
+    "should_trigger": false
+  },
+  {
+    "query": "i'm implementing the peripheral side firmware on an nRF52840 in zephyr. how do i declare a custom GATT service with a notify characteristic and push updates from a work queue?",
+    "should_trigger": false
+  },
+  {
+    "query": "does the Web Bluetooth API let me read a characteristic from a service worker, or does it need an active user gesture on the page every time? building a dashboard in react",
+    "should_trigger": false
+  },
+  {
+    "query": "run a scan of 10.0.0.0/24 and tell me which hosts have port 8080 open — i think someone stood up a service they shouldn't have",
+    "should_trigger": false
+  },
+  {
+    "query": "our websocket agent keeps dropping connections after about 2 minutes and the client reconnects in a loop. it's a ktor server behind nginx — is this an idle timeout on the proxy?",
+    "should_trigger": false
+  },
+  {
+    "query": "explain the difference between BLE notify and indicate, and when a peripheral designer should pick one over the other. writing up a design doc for the firmware team",
+    "should_trigger": false
+  },
+  {
+    "query": "the remote build agent for our CI runner is offline again. can you check whether the container is up and restart it if it isn't?",
+    "should_trigger": false
+  },
+  {
+    "query": "i've got a csv of bluetooth device MAC addresses and signal strengths exported from a site survey app. can you group them by vendor OUI and chart the rssi distribution?",
+    "should_trigger": false
+  },
+  {
+    "query": "add a --verbose flag to our python cli tool that prints each http request before it's sent. it uses click and there's already a --quiet flag i don't want to break",
+    "should_trigger": false
+  }
+]

@@ -1,0 +1,14 @@
+.DS_Store
+.gradle/
+build/
+**/build/
+out/
+.idea/
+*.iml
+
+# Local test and release artifacts.
+.integration/
+*.log
+
+# Local agent/session configuration; contains machine-specific paths.
+.claude/

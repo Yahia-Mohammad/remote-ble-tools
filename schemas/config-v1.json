@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remoteble.dev/schemas/config-v1.json",
+  "type": "object",
+  "required": ["schemaVersion"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "endpoint": { "type": "string" },
+        "tokenEnvironmentVariable": { "type": "string" },
+        "operatorTokenEnvironmentVariable": { "type": "string" },
+        "clientId": { "type": "string", "minLength": 8, "maxLength": 128 }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scanDuration": { "type": "string" },
+        "operationTimeout": { "type": "string" },
+        "output": { "enum": ["human", "json", "jsonl", "hex", "base64", "raw", "quiet"] },
+        "logLevel": { "enum": ["audit", "debug"] },
+        "logDirectory": { "type": "string" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "readOnly": { "type": "boolean" },
+        "maximumWriteBytes": { "type": "integer", "minimum": 1 },
+        "maximumNotificationCount": { "type": "integer", "minimum": 1 },
+        "maximumWritesPerWindow": { "type": "integer", "minimum": 1 },
+        "writeRateWindow": { "type": "string" },
+        "allowUnboundedStreams": { "type": "boolean" },
+        "writeRules": { "type": "array" }
+      }
+    },
+    "profiles": { "type": "object" }
+  },
+  "additionalProperties": false
+}

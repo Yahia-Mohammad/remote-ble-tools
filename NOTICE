@@ -1,0 +1,9 @@
+RemoteBLE Tools
+Copyright 2026 Yahia Mohammad
+
+This product contains source derived from Remote BLE Transport 0.11.0,
+Copyright 2026 Yahia Mohammad, under the Apache License, Version 2.0.
+
+Only the RemoteBLE wire-protocol, CBOR codec, WebSocket transport, session,
+remote scan, and remote GATT request layers are included. No Kable source or
+local Bluetooth implementation is included.

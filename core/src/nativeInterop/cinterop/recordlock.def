@@ -1,0 +1,2 @@
+headers = recordlock.h
+package = dev.warsha.remoteble.tools.core.recordlock

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remoteble.dev/schemas/agent-write-policy-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "principals"],
+  "properties": {
+    "version": { "const": 1 },
+    "principals": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "writes": { "type": "array", "items": { "$ref": "#/$defs/writeRule" } },
+          "descriptorWrites": { "type": "array", "items": { "$ref": "#/$defs/descriptorRule" } },
+          "pairing": { "type": "boolean" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "writeRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["service", "characteristic"],
+      "properties": {
+        "device": { "type": "string", "default": "*" },
+        "service": { "type": "string" },
+        "characteristic": { "type": "string" },
+        "maximumBytes": { "type": ["integer", "null"], "minimum": 0 },
+        "withResponse": { "type": ["boolean", "null"] }
+      }
+    },
+    "descriptorRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["service", "characteristic", "descriptor"],
+      "properties": {
+        "device": { "type": "string", "default": "*" },
+        "service": { "type": "string" },
+        "characteristic": { "type": "string" },
+        "descriptor": { "type": "string" },
+        "maximumBytes": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    }
+  }
+}

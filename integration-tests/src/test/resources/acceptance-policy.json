@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "principals": {
+    "primary": {
+      "writes": [
+        {
+          "device": "*",
+          "service": "0000180d-0000-1000-8000-00805f9b34fb",
+          "characteristic": "00002a39-0000-1000-8000-00805f9b34fb",
+          "maximumBytes": 2,
+          "withResponse": true
+        }
+      ]
+    },
+    "secondary": { "writes": [] }
+  }
+}

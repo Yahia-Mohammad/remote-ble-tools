@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remoteble.dev/schemas/session-input-v1.json",
+  "title": "RemoteBLE persistent session input v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "command", "arguments"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "command": { "enum": ["agent.status", "agent.slots", "scan", "observe", "read", "write", "stream.stop", "session.close"] },
+    "arguments": { "type": "object" }
+  },
+  "allOf": [
+    { "if": { "properties": { "command": { "enum": ["agent.status", "agent.slots", "session.close"] } } }, "then": { "properties": { "arguments": { "$ref": "#/$defs/empty" } } } },
+    { "if": { "properties": { "command": { "const": "stream.stop" } } }, "then": { "properties": { "arguments": { "$ref": "#/$defs/stop" } } } },
+    { "if": { "properties": { "command": { "const": "read" } } }, "then": { "properties": { "arguments": { "$ref": "#/$defs/read" } } } },
+    { "if": { "properties": { "command": { "const": "observe" } } }, "then": { "properties": { "arguments": { "$ref": "#/$defs/observe" } } } },
+    { "if": { "properties": { "command": { "const": "write" } } }, "then": { "properties": { "arguments": { "$ref": "#/$defs/write" } } } },
+    { "if": { "properties": { "command": { "const": "scan" } } }, "then": { "properties": { "arguments": { "$ref": "#/$defs/scan" } } } }
+  ],
+  "$defs": {
+    "empty": { "type": "object", "additionalProperties": false, "maxProperties": 0 },
+    "stop": { "type": "object", "additionalProperties": false, "required": ["streamId"], "properties": { "streamId": { "type": "integer", "minimum": 1 } } },
+    "read": { "type": "object", "additionalProperties": false, "required": ["handle", "serviceUuid", "characteristicUuid"], "properties": { "handle": { "type": "string", "minLength": 1 }, "serviceUuid": { "type": "string", "minLength": 1 }, "characteristicUuid": { "type": "string", "minLength": 1 } } },
+    "observe": { "type": "object", "additionalProperties": false, "required": ["handle", "serviceUuid", "characteristicUuid"], "properties": { "handle": { "type": "string", "minLength": 1 }, "serviceUuid": { "type": "string", "minLength": 1 }, "characteristicUuid": { "type": "string", "minLength": 1 }, "count": { "type": "integer", "minimum": 1 }, "timeout": { "type": "string", "minLength": 1 }, "unbounded": { "type": "boolean" } } },
+    "write": { "type": "object", "additionalProperties": false, "required": ["handle", "serviceUuid", "characteristicUuid", "writeType"], "properties": { "handle": { "type": "string", "minLength": 1 }, "serviceUuid": { "type": "string", "minLength": 1 }, "characteristicUuid": { "type": "string", "minLength": 1 }, "writeType": { "enum": ["with-response", "without-response"] }, "hex": { "type": "string" }, "base64": { "type": "string" }, "text": { "type": "string" } }, "oneOf": [ { "required": ["hex"] }, { "required": ["base64"] }, { "required": ["text"] } ] },
+    "scan": { "type": "object", "additionalProperties": false, "properties": { "serviceUuid": { "type": "string" }, "name": { "type": "string" }, "count": { "type": "integer", "minimum": 1 }, "timeout": { "type": "string", "minLength": 1 } } }
+  }
+}

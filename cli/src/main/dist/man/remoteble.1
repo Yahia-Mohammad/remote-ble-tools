@@ -1,0 +1,118 @@
+.TH REMOTEBLE 1
+.SH NAME
+remoteble \- command-line client for a remote RemoteBLE agent
+.SH SYNOPSIS
+.B remoteble
+.RI [ global-options ] " command " [ command-options ]
+.SH DESCRIPTION
+.B remoteble
+controls Bluetooth Low Energy peripherals through a RemoteBLE agent. The client runs separately
+from the host that owns the radio and communicates with the agent over an authenticated WebSocket.
+.SH GLOBAL OPTIONS
+.TP
+.B --config PATH
+Read configuration from PATH.
+.TP
+.B --profile NAME
+Select a named configuration profile.
+.TP
+.B --endpoint URL
+Override the agent WebSocket endpoint.
+.TP
+.B --client-id ID
+Override the persisted client identity used for lease resumption.
+.TP
+.B --token-stdin
+Read the bearer token from standard input. It cannot be combined with a stdin write payload,
+session, or shell.
+.TP
+.B --json
+Emit one structured JSON envelope.
+.TP
+.B --jsonl
+Emit newline-delimited structured JSON records.
+.TP
+.B --quiet
+Emit only the primary value.
+.TP
+.B --output MODE
+Select human, json, jsonl, hex, base64, raw, or quiet output where supported.
+.TP
+.B --log-level LEVEL
+Select audit or debug operational logging.
+.TP
+.B --generate-completion SHELL
+Generate a completion script for bash, fish, or zsh.
+.TP
+.B -h, --help
+Show command help.
+.TP
+.B -V, --version
+Show the CLI version.
+.SH COMMANDS
+.TP
+.B agent status|capabilities|slots
+Inspect agent state and negotiated capabilities.
+.TP
+.B scan
+Discover advertisements. Supports --duration, --service, --name, --minimum-rssi, and --max-events.
+.TP
+.B connect, disconnect
+Acquire or release a peripheral lease.
+.TP
+.B inspect
+Discover a connected peripheral's GATT tree.
+.TP
+.B read
+Read a characteristic.
+.TP
+.B descriptor read
+Read a characteristic descriptor when the agent supports descriptors.
+.TP
+.B rssi
+Read connected-link RSSI when the agent supports it.
+.TP
+.B observe
+Stream characteristic notifications with --count, --timeout, or policy-gated --unbounded.
+.TP
+.B write
+Write a characteristic only when both local advisory policy and agent-side enforcement permit it.
+Use exactly one of --hex, --base64, --text, or --stdin, plus --write-type.
+.TP
+.B report
+Show recent local audit records as a diagnostic report, including operations and their results.
+.TP
+.B session
+Run the persistent JSONL machine-session protocol.
+.TP
+.B shell
+Run the interactive human shell.
+.TP
+.B config show|validate
+Inspect or validate effective configuration.
+.SH ENVIRONMENT
+.TP
+.B REMOTE_BLE_TOKEN
+Bearer token for the agent. The variable name can be changed in configuration.
+.TP
+.B REMOTE_BLE_CONFIG
+Default configuration path.
+.TP
+.B REMOTE_BLE_LOG_DIR
+Directory for audit and debug logs.
+.SH FILES
+.TP
+.I dist/completions/remoteble.bash
+Bash completion shipped in release archives. Source it or install it in Bash's completion directory.
+.TP
+.I dist/completions/remoteble.zsh
+Zsh completion.
+.TP
+.I dist/completions/remoteble.fish
+Fish completion.
+.SH EXIT STATUS
+0 means success. Usage errors exit 2, authentication errors exit 4, missing peripherals exit 5,
+lease contention exits 6, policy or unsupported operations exit 7, indeterminate writes exit 8,
+and retryable transport failures exit 9.
+.SH SEE ALSO
+The full command and JSON schema reference is distributed with the project documentation.

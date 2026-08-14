@@ -1,0 +1,130 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+# Only the final job receives write authority. It publishes only after this tagged commit has run
+# the same JVM, live-agent, formatting, and packaging verification required for a merge.
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  jvm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+      - name: Verify dependency locks
+        run: |
+          ./gradlew dependencies --no-daemon
+          git diff --exit-code -- '**/gradle.lockfile' settings-gradle.lockfile
+      - name: Verify and package the tagged commit
+        run: ./gradlew :core:jvmTest :cli:jvmTest :integration-tests:test :integration-tests:fetchAgent :integration-tests:liveAgentTest :cli:releaseArchive formatCheck -Premoteble.agent.required=true -Premoteble.version="${GITHUB_REF_NAME#v}"
+      - run: |
+          unzip -q cli/build/distributions/remoteble-*.zip -d "$RUNNER_TEMP/jvm-release"
+          ( cd "$RUNNER_TEMP/jvm-release" && shasum -a 256 -c SHA256SUMS )
+          test -s "$RUNNER_TEMP/jvm-release/sbom.json"
+          test -x "$RUNNER_TEMP/jvm-release/dist/bin/remoteble"
+          "$RUNNER_TEMP/jvm-release/dist/bin/remoteble" --version
+          test -f "$RUNNER_TEMP/jvm-release/dist/completions/remoteble.bash"
+          test -f "$RUNNER_TEMP/jvm-release/dist/man/remoteble.1"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: remoteble-jvm
+          path: cli/build/distributions/remoteble-*.zip
+          if-no-files-found: error
+
+  native-macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+      - run: ./gradlew :core:macosArm64Test :cli:macosArm64Test :integration-tests:nativeLockHandoffTest :cli:macosArm64NativeArchive -Premoteble.version="${GITHUB_REF_NAME#v}"
+      - run: |
+          cli/build/bin/macosArm64/remotebleReleaseExecutable/remoteble.kexe --help
+          unzip -q cli/build/distributions/remoteble-macos-arm64-*.zip -d "$RUNNER_TEMP/macos-release"
+          ( cd "$RUNNER_TEMP/macos-release" && shasum -a 256 -c SHA256SUMS )
+          test -f "$RUNNER_TEMP/macos-release/dist/completions/remoteble.bash"
+          test -f "$RUNNER_TEMP/macos-release/dist/man/remoteble.1"
+          "$RUNNER_TEMP/macos-release/dist/bin/remoteble" --version
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: remoteble-macos-arm64
+          path: cli/build/distributions/remoteble-macos-arm64-*.zip
+          if-no-files-found: error
+
+  native-linux-x64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+      - run: ./gradlew :core:linuxX64Test :cli:linuxX64Test :integration-tests:nativeLockHandoffTest :cli:linuxX64NativeArchive -Premoteble.version="${GITHUB_REF_NAME#v}"
+      - run: |
+          cli/build/bin/linuxX64/remotebleReleaseExecutable/remoteble.kexe --help
+          unzip -q cli/build/distributions/remoteble-linux-x64-*.zip -d "$RUNNER_TEMP/linux-x64-release"
+          ( cd "$RUNNER_TEMP/linux-x64-release" && shasum -a 256 -c SHA256SUMS )
+          test -f "$RUNNER_TEMP/linux-x64-release/dist/completions/remoteble.bash"
+          test -f "$RUNNER_TEMP/linux-x64-release/dist/man/remoteble.1"
+          "$RUNNER_TEMP/linux-x64-release/dist/bin/remoteble" --version
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: remoteble-linux-x64
+          path: cli/build/distributions/remoteble-linux-x64-*.zip
+          if-no-files-found: error
+
+  native-linux-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+      - run: ./gradlew :core:linuxArm64Test :cli:linuxArm64Test :integration-tests:nativeLockHandoffTest :cli:linuxArm64NativeArchive -Premoteble.version="${GITHUB_REF_NAME#v}"
+      - run: |
+          cli/build/bin/linuxArm64/remotebleReleaseExecutable/remoteble.kexe --help
+          unzip -q cli/build/distributions/remoteble-linux-arm64-*.zip -d "$RUNNER_TEMP/linux-arm64-release"
+          ( cd "$RUNNER_TEMP/linux-arm64-release" && shasum -a 256 -c SHA256SUMS )
+          test -f "$RUNNER_TEMP/linux-arm64-release/dist/completions/remoteble.bash"
+          test -f "$RUNNER_TEMP/linux-arm64-release/dist/man/remoteble.1"
+          "$RUNNER_TEMP/linux-arm64-release/dist/bin/remoteble" --version
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: remoteble-linux-arm64
+          path: cli/build/distributions/remoteble-linux-arm64-*.zip
+          if-no-files-found: error
+
+  publish:
+    needs: [jvm, native-macos, native-linux-x64, native-linux-arm64]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: remoteble-*
+          path: release-artifacts
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" $(find release-artifacts -type f -name '*.zip' -print) \
+            --verify-tag --title "$GITHUB_REF_NAME" --generate-notes

@@ -1,0 +1,14 @@
+schemaVersion: 1
+agent:
+  endpoint: ws://127.0.0.1:8080/agent
+  tokenEnvironmentVariable: REMOTE_BLE_TOKEN
+defaults:
+  scanDuration: 5s
+  operationTimeout: 20s
+  output: human
+policy:
+  readOnly: true
+profiles:
+  lab:
+    agent:
+      endpoint: ws://192.0.2.10:8080/agent

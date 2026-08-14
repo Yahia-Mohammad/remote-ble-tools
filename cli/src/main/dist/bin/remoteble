@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+# Compatibility launcher for the fat JAR distribution. Resolved at run time so the launcher does
+# not need to track the release version in its own source.
+jar=$(ls "$(dirname "$0")/../../lib"/remoteble-*-all.jar 2>/dev/null | head -n 1)
+if [ -z "$jar" ]; then
+    echo "remoteble: RemoteBLE fat JAR not found beside this launcher" >&2
+    exit 1
+fi
+exec java -jar "$jar" "$@"

@@ -1,0 +1,449 @@
+{
+  "schemaVersion": 1,
+  "seed": 17,
+  "peripherals": [
+    {
+      "id": "sim-hrm-1",
+      "advertisement": {
+        "name": "Warsha HRM (sim)",
+        "serviceUuids": [
+          "180d",
+          "180f",
+          "180a"
+        ],
+        "rssi": -50,
+        "rssiJitter": 2,
+        "intervalMs": 100
+      },
+      "connect": {
+        "latencyMs": 30
+      },
+      "services": [
+        {
+          "uuid": "180d",
+          "characteristics": [
+            {
+              "uuid": "2a37",
+              "properties": [
+                "notify"
+              ],
+              "notify": {
+                "intervalMs": 60,
+                "values": {
+                  "sequence": [
+                    "003c",
+                    "003d",
+                    "003e",
+                    "003f"
+                  ]
+                }
+              }
+            },
+            {
+              "uuid": "2a39",
+              "properties": [
+                "write"
+              ],
+              "write": {
+                "accept": true
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "180f",
+          "characteristics": [
+            {
+              "uuid": "2a19",
+              "properties": [
+                "read"
+              ],
+              "read": {
+                "static": "64"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "180a",
+          "characteristics": [
+            {
+              "uuid": "2a29",
+              "properties": [
+                "read"
+              ],
+              "read": {
+                "static": "576172736861"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sim-hostile-1",
+      "advertisement": {
+        "name": "HRM\u001b[31m\u0007 \u0000 rm -rf /",
+        "serviceUuids": [
+          "180f"
+        ],
+        "rssi": -70,
+        "intervalMs": 120
+      },
+      "connect": {
+        "latencyMs": 10
+      },
+      "services": [
+        {
+          "uuid": "180f",
+          "characteristics": [
+            {
+              "uuid": "2a19",
+              "properties": [
+                "read"
+              ],
+              "read": {
+                "static": "2a"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sim-twin-a",
+      "advertisement": {
+        "name": "Warsha Twin (sim)",
+        "serviceUuids": [
+          "180f"
+        ],
+        "rssi": -60,
+        "intervalMs": 120
+      },
+      "connect": {
+        "latencyMs": 10
+      },
+      "services": [
+        {
+          "uuid": "180f",
+          "characteristics": [
+            {
+              "uuid": "2a19",
+              "properties": [
+                "read"
+              ],
+              "read": {
+                "static": "10"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "180d",
+          "characteristics": [
+            {
+              "uuid": "2a39",
+              "properties": ["write"],
+              "write": { "accept": true }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sim-twin-b",
+      "advertisement": {
+        "name": "Warsha Twin (sim)",
+        "serviceUuids": [
+          "180f"
+        ],
+        "rssi": -65,
+        "intervalMs": 120
+      },
+      "connect": {
+        "latencyMs": 10
+      },
+      "services": [
+        {
+          "uuid": "180f",
+          "characteristics": [
+            {
+              "uuid": "2a19",
+              "properties": [
+                "read"
+              ],
+              "read": {
+                "static": "11"
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "180d",
+          "characteristics": [
+            {
+              "uuid": "2a39",
+              "properties": ["write"],
+              "write": { "accept": true }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sim-lease-1",
+      "advertisement": {
+        "name": "Warsha Lease (sim)",
+        "serviceUuids": [
+          "180d",
+          "180f"
+        ],
+        "rssi": -55,
+        "intervalMs": 120
+      },
+      "connect": {
+        "latencyMs": 10
+      },
+      "services": [
+        {
+          "uuid": "180d",
+          "characteristics": [
+            {
+              "uuid": "2a37",
+              "properties": [
+                "notify"
+              ],
+              "notify": {
+                "intervalMs": 60,
+                "values": {
+                  "sequence": [
+                    "003c",
+                    "003d",
+                    "003e",
+                    "003f"
+                  ]
+                }
+              }
+            },
+            {
+              "uuid": "2a39",
+              "properties": [
+                "write"
+              ],
+              "write": {
+                "accept": true
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "180f",
+          "characteristics": [
+            {
+              "uuid": "2a19",
+              "properties": [
+                "read"
+              ],
+              "read": {
+                "static": "64"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sim-drop-1",
+      "advertisement": {
+        "name": "Warsha Drop (sim)",
+        "serviceUuids": ["180d"],
+        "rssi": -59,
+        "intervalMs": 120
+      },
+      "connect": {
+        "latencyMs": 10,
+        "dropAfterMs": 300
+      },
+      "services": [
+        {
+          "uuid": "180d",
+          "characteristics": [
+            {
+              "uuid": "2a37",
+              "properties": ["notify"],
+              "notify": {
+                "intervalMs": 50,
+                "values": { "sequence": ["003c", "003d", "003e", "003f"] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sim-pty-jobs-1",
+      "advertisement": {
+        "name": "Warsha PTY Jobs (sim)",
+        "serviceUuids": ["180d"],
+        "rssi": -57,
+        "intervalMs": 120
+      },
+      "connect": { "latencyMs": 10 },
+      "services": [
+        {
+          "uuid": "180d",
+          "characteristics": [
+            {
+              "uuid": "2a37",
+              "properties": ["notify"],
+              "notify": {
+                "intervalMs": 60,
+                "values": { "sequence": ["003c", "003d", "003e", "003f"] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sim-pty-interrupt-1",
+      "advertisement": {
+        "name": "Warsha PTY Interrupt (sim)",
+        "serviceUuids": ["180d"],
+        "rssi": -56,
+        "intervalMs": 120
+      },
+      "connect": { "latencyMs": 10 },
+      "services": [
+        {
+          "uuid": "180d",
+          "characteristics": [
+            {
+              "uuid": "2a37",
+              "properties": ["notify"],
+              "notify": {
+                "intervalMs": 60,
+                "values": { "sequence": ["003c", "003d", "003e", "003f"] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sim-broken-pipe-1",
+      "advertisement": {
+        "name": "Warsha Broken Pipe (sim)",
+        "serviceUuids": ["180d"],
+        "rssi": -55,
+        "intervalMs": 120
+      },
+      "connect": { "latencyMs": 10 },
+      "services": [
+        {
+          "uuid": "180d",
+          "characteristics": [
+            {
+              "uuid": "2a37",
+              "properties": ["notify"],
+              "notify": {
+                "intervalMs": 60,
+                "values": { "sequence": ["003c", "003d", "003e", "003f"] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sim-policy-1",
+      "advertisement": {
+        "name": "Warsha Policy (sim)",
+        "serviceUuids": [
+          "180d",
+          "180f"
+        ],
+        "rssi": -58,
+        "intervalMs": 120
+      },
+      "connect": {
+        "latencyMs": 10
+      },
+      "services": [
+        {
+          "uuid": "180d",
+          "characteristics": [
+            {
+              "uuid": "2a39",
+              "properties": [
+                "write"
+              ],
+              "write": {
+                "accept": true
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "180f",
+          "characteristics": [
+            {
+              "uuid": "2a19",
+              "properties": [
+                "read"
+              ],
+              "read": {
+                "static": "64"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sim-contend-1",
+      "advertisement": {
+        "name": "Warsha Contend (sim)",
+        "serviceUuids": [
+          "180d",
+          "180f"
+        ],
+        "rssi": -62,
+        "intervalMs": 120
+      },
+      "connect": {
+        "latencyMs": 10
+      },
+      "services": [
+        {
+          "uuid": "180d",
+          "characteristics": [
+            {
+              "uuid": "2a39",
+              "properties": [
+                "write"
+              ],
+              "write": {
+                "accept": true
+              }
+            }
+          ]
+        },
+        {
+          "uuid": "180f",
+          "characteristics": [
+            {
+              "uuid": "2a19",
+              "properties": [
+                "read"
+              ],
+              "read": {
+                "static": "64"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

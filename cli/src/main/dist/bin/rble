@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# Short alias shipped beside the primary launcher.
+exec "$(dirname "$0")/remoteble" "$@"

@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remoteble.dev/schemas/result-envelope-v1.json",
+  "title": "RemoteBLE CLI result envelope v1",
+  "type": "object",
+  "required": ["schemaVersion", "type", "data"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "type": {
+      "enum": [
+        "agent.capabilities", "agent.status", "agent.slots", "scan", "scan.result",
+        "connect", "disconnect", "inspect", "read", "descriptor.read", "rssi",
+        "observe.notification", "write", "report", "config.show", "config.validate", "error"
+      ]
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "data": {}
+  },
+  "additionalProperties": false,
+  "allOf": [
+    { "if": { "properties": { "type": { "const": "agent.capabilities" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/capabilities" } } } },
+    { "if": { "properties": { "type": { "const": "agent.status" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/status" } } } },
+    { "if": { "properties": { "type": { "const": "agent.slots" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/slots" } } } },
+    { "if": { "properties": { "type": { "const": "scan" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/scan" } } } },
+    { "if": { "properties": { "type": { "const": "scan.result" } } }, "then": { "required": ["timestamp", "sequence"], "properties": { "data": { "$ref": "#/$defs/advertisement" } } } },
+    { "if": { "properties": { "type": { "enum": ["connect", "disconnect"] } } }, "then": { "properties": { "data": { "$ref": "#/$defs/device" } } } },
+    { "if": { "properties": { "type": { "const": "inspect" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/services" } } } },
+    { "if": { "properties": { "type": { "enum": ["read", "descriptor.read"] } } }, "then": { "properties": { "data": { "$ref": "#/$defs/bytes" } } } },
+    { "if": { "properties": { "type": { "const": "rssi" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/rssi" } } } },
+    { "if": { "properties": { "type": { "const": "observe.notification" } } }, "then": { "required": ["timestamp", "sequence"], "properties": { "data": { "$ref": "#/$defs/notification" } } } },
+    { "if": { "properties": { "type": { "const": "write" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/write" } } } },
+    { "if": { "properties": { "type": { "const": "report" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/report" } } } },
+    { "if": { "properties": { "type": { "const": "config.show" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/config" } } } },
+    { "if": { "properties": { "type": { "const": "config.validate" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/configValidation" } } } },
+    { "if": { "properties": { "type": { "const": "error" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/error" } } } }
+  ],
+  "$defs": {
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capabilities", "scanConcurrency", "handleTranslation"],
+      "properties": {
+        "capabilities": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "scanConcurrency": { "type": "string" },
+        "handleTranslation": { "type": "boolean" }
+      }
+    },
+    "status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "uptimeMs", "operatorScope", "connectedClients", "otherLeases", "slots", "settings", "leases"],
+      "properties": {
+        "agentInfo": { "type": "string" },
+        "protocolVersion": { "type": "integer" },
+        "uptimeMs": { "type": "integer", "minimum": 0 },
+        "operatorScope": { "type": "boolean" },
+        "connectedClients": { "type": "integer", "minimum": 0 },
+        "otherLeases": { "type": "integer", "minimum": 0 },
+        "slots": { "$ref": "#/$defs/slots" },
+        "settings": { "$ref": "#/$defs/settings" },
+        "leases": { "type": "array", "items": { "$ref": "#/$defs/lease" } }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transportGraceMs", "leaseGraceMs", "exclusiveByDefault", "scanConcurrency", "strictIdentifiers", "writePolicyEnforced"],
+      "properties": {
+        "transportGraceMs": { "type": "integer", "minimum": 0 },
+        "leaseGraceMs": { "type": "integer", "minimum": 0 },
+        "exclusiveByDefault": { "type": "boolean" },
+        "scanConcurrency": { "type": "string" },
+        "strictIdentifiers": { "type": "boolean" },
+        "writePolicyEnforced": { "type": "boolean" }
+      }
+    },
+    "lease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handle", "mine", "connected", "inGrace"],
+      "properties": {
+        "handle": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "holder": { "type": "string" },
+        "mine": { "type": "boolean" },
+        "connected": { "type": "boolean" },
+        "inGrace": { "type": "boolean" },
+        "remainingGraceMs": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "slots": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["free", "total"],
+      "properties": {
+        "free": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "scan": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/scanDevice" }
+    },
+    "scanDevice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handle", "rssi", "eventCount", "firstSeen", "lastSeen", "serviceUuids"],
+      "properties": {
+        "handle": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "rssi": { "type": "integer" },
+        "eventCount": { "type": "integer", "minimum": 1 },
+        "firstSeen": { "type": "integer", "minimum": 0 },
+        "lastSeen": { "type": "integer", "minimum": 0 },
+        "serviceUuids": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "advertisement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handle", "rssi", "serviceUuids", "manufacturerData"],
+      "properties": {
+        "handle": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "rssi": { "type": "integer" },
+        "serviceUuids": { "type": "array", "items": { "type": "string" } },
+        "manufacturerData": {
+          "type": "object",
+          "patternProperties": { "^[0-9]+$": { "type": "string", "pattern": "^(?:[0-9a-fA-F]{2})*$" } },
+          "additionalProperties": false
+        }
+      }
+    },
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handle"],
+      "properties": { "handle": { "type": "string", "minLength": 1 } }
+    },
+    "services": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/service" }
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uuid", "characteristics"],
+      "properties": {
+        "uuid": { "type": "string", "minLength": 1 },
+        "characteristics": { "type": "array", "items": { "$ref": "#/$defs/characteristic" } }
+      }
+    },
+    "characteristic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uuid", "properties", "descriptors"],
+      "properties": {
+        "uuid": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "properties": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "descriptors": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "bytes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hex", "base64", "length"],
+      "properties": {
+        "hex": { "type": "string", "pattern": "^(?:[0-9a-fA-F]{2})*$" },
+        "base64": { "type": "string", "contentEncoding": "base64" },
+        "length": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "rssi": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handle", "rssi"],
+      "properties": {
+        "handle": { "type": "string", "minLength": 1 },
+        "rssi": { "type": "integer" }
+      }
+    },
+    "notification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "timestamp", "handle", "serviceUuid", "characteristicUuid", "value"],
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 1 },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "handle": { "type": "string", "minLength": 1 },
+        "serviceUuid": { "type": "string", "minLength": 1 },
+        "characteristicUuid": { "type": "string", "minLength": 1 },
+        "value": { "$ref": "#/$defs/bytes" }
+      }
+    },
+    "write": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handle", "length", "withResponse"],
+      "properties": {
+        "handle": { "type": "string", "minLength": 1 },
+        "length": { "type": "integer", "minimum": 0 },
+        "withResponse": { "type": "boolean" }
+      }
+    },
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["records"],
+      "properties": {
+        "records": { "type": "array", "items": { "$ref": "#/$defs/auditRecord" } }
+      }
+    },
+    "auditRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timestamp", "operation"],
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "operation": { "type": "string" },
+        "operationId": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "commandId": { "type": "string" },
+        "streamId": { "type": "string" },
+        "endpoint": { "type": "string" },
+        "clientId": { "type": "string" },
+        "device": { "type": "string" },
+        "serviceUuid": { "type": "string" },
+        "characteristicUuid": { "type": "string" },
+        "writeType": { "enum": ["with-response", "without-response"] },
+        "payloadLength": { "type": "integer", "minimum": 0 },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "result": { "type": "string" },
+        "errorKind": { "type": "string" }
+      }
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "agent", "policy", "logging"],
+      "properties": {
+        "schemaVersion": { "type": "integer", "minimum": 1 },
+        "agent": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["endpoint", "clientId", "tokenEnvironmentVariable", "operatorTokenEnvironmentVariable"],
+          "properties": {
+            "endpoint": { "type": "string" },
+            "clientId": { "type": "string" },
+            "tokenEnvironmentVariable": { "type": "string" },
+            "operatorTokenEnvironmentVariable": { "type": "string" }
+          }
+        },
+        "policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["readOnly", "maximumWriteBytes"],
+          "properties": {
+            "readOnly": { "type": "boolean" },
+            "maximumWriteBytes": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "logging": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["level", "directory"],
+          "properties": {
+            "level": { "type": "string" },
+            "directory": { "type": "string" }
+          }
+        }
+      }
+    },
+    "configValidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["valid"],
+      "properties": { "valid": { "const": true } }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exitCode", "message"],
+      "properties": {
+        "exitCode": { "type": "integer", "minimum": 1, "maximum": 255 },
+        "message": { "type": "string" },
+        "errorKind": { "type": "string" },
+        "gattStatus": { "type": "integer" },
+        "holder": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["principal"],
+          "properties": {
+            "principal": { "type": "string" },
+            "clientId": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

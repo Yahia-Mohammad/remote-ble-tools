@@ -1,0 +1,30 @@
+[versions]
+kotlin = "2.4.10"
+coroutines = "1.11.0"
+serialization = "1.11.0"
+clikt = "5.0.1"
+kaml = "0.69.0"
+junit = "5.11.4"
+ktor = "3.5.1"
+cyclonedx = "3.3.0"
+json-schema-validator = "3.0.6"
+
+[libraries]
+coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "serialization" }
+serialization-cbor = { module = "org.jetbrains.kotlinx:kotlinx-serialization-cbor", version.ref = "serialization" }
+serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
+kaml = { module = "com.charleskorn.kaml:kaml", version.ref = "kaml" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+ktor-client-websockets = { module = "io.ktor:ktor-client-websockets", version.ref = "ktor" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "json-schema-validator" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+cyclonedx-bom = { id = "org.cyclonedx.bom", version.ref = "cyclonedx" }
