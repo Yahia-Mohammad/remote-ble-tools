@@ -140,7 +140,9 @@ jobs:
             cli/build/distributions/remoteble-*.x86_64.rpm
 
   native-linux-arm64:
-    runs-on: ubuntu-24.04-arm
+    # Kotlin/Native supports Linux ARM64 as a target from Linux x64, but does not support an
+    # ARM64 Linux host. The following package-test job runs the resulting binaries on ARM64.
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
@@ -155,15 +157,10 @@ jobs:
         run: |
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-      - run: ./gradlew :core:linuxArm64Test :cli:linuxArm64Test :integration-tests:nativeLockHandoffTest :cli:linuxArm64NativeArchive :cli:linuxArm64Packages -Premoteble.version=0.1.0
+      - run: ./gradlew :integration-tests:nativeLockHandoffTest :cli:linuxArm64NativeArchive :cli:linuxArm64Packages -Premoteble.version=0.1.0
       - run: |
-          cli/build/bin/linuxArm64/remotebleReleaseExecutable/remoteble.kexe --help
           unzip -q cli/build/distributions/remoteble-linux-arm64-*.zip -d "$RUNNER_TEMP/linux-arm64-archive"
-          "$RUNNER_TEMP/linux-arm64-archive/dist/bin/remoteble" --version
-      - name: Inspect, install, and remove ARM64 packages
-        run: |
-          packaging/verify-linux-package.sh deb cli/build/distributions/remoteble_0.1.0_arm64.deb 0.1.0 arm64
-          packaging/verify-linux-package.sh rpm cli/build/distributions/remoteble-0.1.0-1.aarch64.rpm 0.1.0 arm64
+          file "$RUNNER_TEMP/linux-arm64-archive/dist/bin/remoteble" | grep -Eqi 'arm aarch64|aarch64'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: remoteble-linux-arm64
@@ -172,9 +169,23 @@ jobs:
             cli/build/distributions/remoteble_*.deb
             cli/build/distributions/remoteble-*.aarch64.rpm
 
+  native-linux-arm64-package-test:
+    needs: native-linux-arm64
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: remoteble-linux-arm64
+          path: packages
+      - name: Inspect, install, and remove ARM64 packages
+        run: |
+          packaging/verify-linux-package.sh deb packages/remoteble_0.1.0_arm64.deb 0.1.0 arm64
+          packaging/verify-linux-package.sh rpm packages/remoteble-0.1.0-1.aarch64.rpm 0.1.0 arm64
+
   package:
     runs-on: ubuntu-latest
-    needs: [jvm, acceptance, native-macos, native-linux, native-linux-arm64]
+    needs: [jvm, acceptance, native-macos, native-linux, native-linux-arm64, native-linux-arm64-package-test]
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0

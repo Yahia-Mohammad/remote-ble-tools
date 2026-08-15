@@ -203,7 +203,7 @@ jobs:
 
   native-linux-arm64:
     needs: metadata
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
@@ -224,7 +224,7 @@ jobs:
         run: |
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-      - run: ./gradlew :core:linuxArm64Test :cli:linuxArm64Test :integration-tests:nativeLockHandoffTest :cli:linuxArm64NativeArchive -Premoteble.version="${{ needs.metadata.outputs.version }}"
+      - run: ./gradlew :integration-tests:nativeLockHandoffTest :cli:linuxArm64NativeArchive -Premoteble.version="${{ needs.metadata.outputs.version }}"
       - name: Build Linux ARM64 packages
         if: needs.metadata.outputs.stable == 'true'
         run: ./gradlew :cli:linuxArm64Packages -Premoteble.version="${{ needs.metadata.outputs.version }}"
@@ -233,8 +233,7 @@ jobs:
           archive=cli/build/distributions/remoteble-linux-arm64-${{ needs.metadata.outputs.version }}.zip
           unzip -q "$archive" -d "$RUNNER_TEMP/linux-arm64-release"
           ( cd "$RUNNER_TEMP/linux-arm64-release" && shasum -a 256 -c SHA256SUMS )
-          ! ldd "$RUNNER_TEMP/linux-arm64-release/dist/bin/remoteble" | grep -q 'not found'
-          "$RUNNER_TEMP/linux-arm64-release/dist/bin/remoteble" --version
+          file "$RUNNER_TEMP/linux-arm64-release/dist/bin/remoteble" | grep -Eqi 'arm aarch64|aarch64'
       - name: Attest Linux ARM64 archive
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
         with:
