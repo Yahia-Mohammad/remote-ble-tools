@@ -75,11 +75,29 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
-      - run: ./gradlew :core:macosArm64Test :cli:macosArm64Test :integration-tests:nativeLockHandoffTest :cli:macosArm64NativeArchive
+      - run: ./gradlew :core:macosArm64Test :cli:macosArm64Test :integration-tests:nativeLockHandoffTest :cli:macosArm64NativeArchive -Premoteble.version=0.1.0
       - run: |
           cli/build/bin/macosArm64/remotebleReleaseExecutable/remoteble.kexe --help
           unzip -q cli/build/distributions/remoteble-macos-arm64-*.zip -d "$RUNNER_TEMP/macos-archive"
           "$RUNNER_TEMP/macos-archive/dist/bin/remoteble" --version
+      - name: Render and smoke-test the Homebrew formula
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive=$(pwd)/cli/build/distributions/remoteble-macos-arm64-0.1.0.zip
+          sha256=$(shasum -a 256 "$archive" | awk '{print $1}')
+          packaging/render-homebrew-formula.sh 0.1.0 "file://$archive" "$sha256" "$RUNNER_TEMP/remoteble.rb"
+          HOMEBREW_NO_AUTO_UPDATE=1 brew style "$RUNNER_TEMP/remoteble.rb"
+          HOMEBREW_NO_AUTO_UPDATE=1 brew audit --strict --formula "$RUNNER_TEMP/remoteble.rb"
+          HOMEBREW_NO_AUTO_UPDATE=1 brew install --formula "$RUNNER_TEMP/remoteble.rb"
+          HOMEBREW_NO_AUTO_UPDATE=1 brew test remoteble
+          HOMEBREW_NO_AUTO_UPDATE=1 brew reinstall --formula "$RUNNER_TEMP/remoteble.rb"
+          HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall --force remoteble
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: remoteble-formula
+          path: ${{ runner.temp }}/remoteble.rb
+          if-no-files-found: error
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: remoteble-macos-arm64
@@ -94,18 +112,32 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.0.0
+        with:
+          go-version: '1.25.1'
+      - name: Install nFPM
+        run: |
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       # The Native state lock and record reader are the two places where this CLI depends on
       # libc behaviour that differs between platforms, so their tests have to run on Linux and
       # not only on the macOS runner.
-      - run: ./gradlew :core:linuxX64Test :cli:linuxX64Test :integration-tests:nativeLockHandoffTest :cli:linuxX64NativeArchive
+      - run: ./gradlew :core:linuxX64Test :cli:linuxX64Test :integration-tests:nativeLockHandoffTest :cli:linuxX64NativeArchive :cli:linuxX64Packages -Premoteble.version=0.1.0
       - run: |
           cli/build/bin/linuxX64/remotebleReleaseExecutable/remoteble.kexe --help
           unzip -q cli/build/distributions/remoteble-linux-x64-*.zip -d "$RUNNER_TEMP/linux-x64-archive"
           "$RUNNER_TEMP/linux-x64-archive/dist/bin/remoteble" --version
+      - name: Inspect, install, and remove x64 packages
+        run: |
+          packaging/verify-linux-package.sh deb cli/build/distributions/remoteble_0.1.0_amd64.deb 0.1.0 amd64
+          packaging/verify-linux-package.sh rpm cli/build/distributions/remoteble-0.1.0-1.x86_64.rpm 0.1.0 amd64
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: remoteble-linux-x64
-          path: cli/build/distributions/remoteble-linux-x64-*.zip
+          path: |
+            cli/build/distributions/remoteble-linux-x64-*.zip
+            cli/build/distributions/remoteble_*.deb
+            cli/build/distributions/remoteble-*.x86_64.rpm
 
   native-linux-arm64:
     runs-on: ubuntu-24.04-arm
@@ -116,15 +148,29 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
-      - run: ./gradlew :core:linuxArm64Test :cli:linuxArm64Test :integration-tests:nativeLockHandoffTest :cli:linuxArm64NativeArchive
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.0.0
+        with:
+          go-version: '1.25.1'
+      - name: Install nFPM
+        run: |
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - run: ./gradlew :core:linuxArm64Test :cli:linuxArm64Test :integration-tests:nativeLockHandoffTest :cli:linuxArm64NativeArchive :cli:linuxArm64Packages -Premoteble.version=0.1.0
       - run: |
           cli/build/bin/linuxArm64/remotebleReleaseExecutable/remoteble.kexe --help
           unzip -q cli/build/distributions/remoteble-linux-arm64-*.zip -d "$RUNNER_TEMP/linux-arm64-archive"
           "$RUNNER_TEMP/linux-arm64-archive/dist/bin/remoteble" --version
+      - name: Inspect, install, and remove ARM64 packages
+        run: |
+          packaging/verify-linux-package.sh deb cli/build/distributions/remoteble_0.1.0_arm64.deb 0.1.0 arm64
+          packaging/verify-linux-package.sh rpm cli/build/distributions/remoteble-0.1.0-1.aarch64.rpm 0.1.0 arm64
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: remoteble-linux-arm64
-          path: cli/build/distributions/remoteble-linux-arm64-*.zip
+          path: |
+            cli/build/distributions/remoteble-linux-arm64-*.zip
+            cli/build/distributions/remoteble_*.deb
+            cli/build/distributions/remoteble-*.aarch64.rpm
 
   package:
     runs-on: ubuntu-latest

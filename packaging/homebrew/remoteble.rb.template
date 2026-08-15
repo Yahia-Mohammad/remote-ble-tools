@@ -1,0 +1,26 @@
+class Remoteble < Formula
+  desc "Command-line client and Agent Skill for RemoteBLE"
+  homepage "https://github.com/Yahia-Mohammad/remote-ble-tools"
+  url "@ARCHIVE_URL@"
+  version "@VERSION@"
+  sha256 "@ARCHIVE_SHA256@"
+  license "Apache-2.0"
+
+  depends_on :macos
+  depends_on arch: :arm64
+
+  def install
+    bin.install "dist/bin/remoteble", "dist/bin/rble"
+    man1.install "dist/man/remoteble.1"
+    bash_completion.install "dist/completions/remoteble.bash" => "remoteble"
+    zsh_completion.install "dist/completions/remoteble.zsh" => "_remoteble"
+    fish_completion.install "dist/completions/remoteble.fish"
+    (pkgshare/"skills").install "dist/skills/remoteble"
+    pkgshare.install "LICENSE", "NOTICE", "sbom.json"
+  end
+
+  test do
+    system bin/"remoteble", "--version"
+    system bin/"rble", "--version"
+  end
+end

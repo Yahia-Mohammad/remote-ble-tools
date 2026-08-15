@@ -132,7 +132,13 @@ val validateSkill = tasks.register("validateSkill") {
         check(description.length in 80..1024) { "skill description must be 80-1024 characters" }
         check(!frontmatter.contains("compatibility:")) { "compatibility belongs in the body prerequisites section" }
         val skillVersion = Regex("(?m)^  version: [\\\"]?([^\\\"\\s]+)").find(frontmatter)?.groupValues?.get(1) ?: error("metadata.version is required")
-        check(skillVersion == project.version.toString() || (project.version.toString() == "0.1.0-SNAPSHOT" && skillVersion == "0.1.0")) { "skill metadata version does not match release version" }
+        val projectVersion = project.version.toString()
+        val prereleaseBaseVersion = Regex("^(\\d+\\.\\d+\\.\\d+)-").find(projectVersion)?.groupValues?.get(1)
+        check(
+            skillVersion == projectVersion ||
+                (projectVersion == "0.1.0-SNAPSHOT" && skillVersion == "0.1.0") ||
+                skillVersion == prereleaseBaseVersion,
+        ) { "skill metadata version does not match release version" }
         check(text.lineSequence().count() <= 500) { "SKILL.md must remain under 500 lines" }
         Regex("\\[[^]]+]\\(([^)#]+)(?:#[^)]+)?\\)").findAll(text).forEach { match -> check(skillSource.resolve(match.groupValues[1]).isFile) { "missing skill reference ${match.groupValues[1]}" } }
         val forbidden = skillSource.walkTopDown().filter { it.isFile && !it.relativeTo(skillSource).invariantSeparatorsPath.startsWith("evals/") }.filter { file ->
@@ -296,7 +302,7 @@ listOf(
     val nativeStage = layout.buildDirectory.dir("native-release-stage/${spec.target}")
     val nativeReleaseArtifacts = tasks.register<Sync>("${spec.target}ReleaseArtifacts") {
         group = "distribution"
-    dependsOn(validateSkill, verifySkillArchive)
+        dependsOn(validateSkill, verifySkillArchive)
         dependsOn(":cli:${spec.linkTask}")
         dependsOn(nativeBomTask)
         into(nativeStage)
@@ -308,7 +314,7 @@ listOf(
         }
         from("src/main/dist/bin/rble") { into("dist/bin"); filePermissions { unix("0755") } }
         from("src/main/dist/completions") { into("dist/completions") }
-    from("src/main/dist/man") { into("dist/man") }
+        from("src/main/dist/man") { into("dist/man") }
         from(skillSource) { into("dist/skills/remoteble"); exclude("evals/**") }
         from(rootProject.file("LICENSE"))
         from(rootProject.file("NOTICE"))
@@ -333,4 +339,57 @@ listOf(
         from(nativeStage)
         executableLaunchers()
     }
+}
+
+private data class LinuxPackageSpec(
+    val target: String,
+    val debArchitecture: String,
+    val rpmArchitecture: String,
+)
+
+val nfpmExecutable = providers.gradleProperty("nfpm.executable").orElse("nfpm")
+val nfpmConfig = rootProject.file("packaging/nfpm.yaml")
+
+private fun registerLinuxPackageTasks(spec: LinuxPackageSpec) {
+    val stage = layout.buildDirectory.dir("native-release-stage/${spec.target}")
+    val distributions = layout.buildDirectory.dir("distributions")
+
+    fun registerPackage(format: String, architecture: String, filename: String) = tasks.register<Exec>("${spec.target}${format.replaceFirstChar(Char::uppercase)}Package") {
+        group = "distribution"
+        description = "Builds the $format package for ${spec.target} using nFPM."
+        dependsOn("${spec.target}ReleaseArtifacts")
+        inputs.file(nfpmConfig)
+        inputs.dir(stage)
+        inputs.property("remoteble.version", project.version.toString())
+        inputs.property("package.architecture", architecture)
+        val output = distributions.map { it.file(filename) }
+        outputs.file(output)
+        doFirst {
+            check(nfpmConfig.isFile) { "Missing nFPM configuration: ${nfpmConfig.absolutePath}" }
+        }
+        executable(nfpmExecutable.get())
+        args("package", "--config", nfpmConfig.absolutePath, "--packager", format, "--target", output.get().asFile.absolutePath)
+        environment("PACKAGE_ARCH", architecture)
+        environment("PACKAGE_VERSION", project.version.toString())
+        environment("STAGE_DIR", stage.get().asFile.absolutePath)
+    }
+
+    val deb = registerPackage("deb", spec.debArchitecture, "remoteble_${project.version}_${spec.debArchitecture}.deb")
+    val rpm = registerPackage("rpm", spec.rpmArchitecture, "remoteble-${project.version}-1.${spec.rpmArchitecture}.rpm")
+    tasks.register("${spec.target}Packages") {
+        group = "distribution"
+        description = "Builds DEB and RPM packages for ${spec.target}."
+        dependsOn(deb, rpm)
+    }
+}
+
+listOf(
+    LinuxPackageSpec("linuxX64", "amd64", "x86_64"),
+    LinuxPackageSpec("linuxArm64", "arm64", "aarch64"),
+).forEach(::registerLinuxPackageTasks)
+
+tasks.register("linuxPackages") {
+    group = "distribution"
+    description = "Builds all Linux DEB and RPM distribution packages."
+    dependsOn("linuxX64Packages", "linuxArm64Packages")
 }
