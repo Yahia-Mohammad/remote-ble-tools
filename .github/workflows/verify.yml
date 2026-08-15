@@ -37,7 +37,7 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
-      - run: ./gradlew :core:jvmTest :cli:jvmTest :integration-tests:test :cli:fatJar formatCheck
+      - run: ./gradlew :core:jvmTest :cli:validateSkill :cli:jvmTest :integration-tests:test :cli:fatJar :cli:skillChecksum formatCheck
 
   # The only job that exercises the wire protocol. Everything else asserts what this code does with
   # its own types; this asserts what a released agent actually answers, which is where a protocol
@@ -138,9 +138,11 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
-      - run: ./gradlew :cli:releaseArchive
+      - run: ./gradlew :cli:releaseArchive :cli:skillChecksum
       - run: test -s cli/build/distributions/remoteble-*.zip
       - run: unzip -l cli/build/distributions/remoteble-*.zip | grep -E 'LICENSE|NOTICE|SHA256SUMS|sbom.json|rble'
+      - run: unzip -l cli/build/distributions/remoteble-*.zip | grep -q 'dist/skills/remoteble/SKILL.md'
+      - run: ( cd cli/build/distributions && test -s remoteble-skill-*.zip && shasum -a 256 -c remoteble-skill-*.zip.sha256 )
       # The SBOM used to ship as a placeholder that declared no dependencies. A scanner treats that
       # as authoritative, so assert the document lists real libraries rather than arriving as an
       # empty application-only component.
@@ -156,6 +158,14 @@ jobs:
           "$RUNNER_TEMP/jvm-archive/dist/bin/remoteble" --version
           test -f "$RUNNER_TEMP/jvm-archive/dist/completions/remoteble.bash"
           test -f "$RUNNER_TEMP/jvm-archive/dist/man/remoteble.1"
+          skill_home="$RUNNER_TEMP/jvm-skill-home"
+          HOME="$skill_home" "$RUNNER_TEMP/jvm-archive/dist/bin/remoteble" skills install --target codex --scope user
+          HOME="$skill_home" "$RUNNER_TEMP/jvm-archive/dist/bin/remoteble" skills doctor --target codex --scope user
+          printf 'modified\n' > "$skill_home/.agents/skills/remoteble/SKILL.md"
+          ! HOME="$skill_home" "$RUNNER_TEMP/jvm-archive/dist/bin/remoteble" skills install --target codex --scope user
+          HOME="$skill_home" "$RUNNER_TEMP/jvm-archive/dist/bin/remoteble" skills install --target codex --scope user --force
+          test -d "$skill_home/.agents/skills/remoteble"
+          test -d "$(dirname "$skill_home/.agents/skills/remoteble")"/remoteble.backup-*
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: remoteble-*
@@ -177,4 +187,14 @@ jobs:
             test -x "$target/dist/bin/rble"
             test -f "$target/dist/completions/remoteble.bash"
             test -f "$target/dist/man/remoteble.1"
+            test -f "$target/dist/skills/remoteble/SKILL.md"
+            skill_home="$target/skill-home"
+            HOME="$skill_home" "$target/dist/bin/remoteble" skills install --target codex --scope user
+            HOME="$skill_home" "$target/dist/bin/remoteble" skills doctor --target codex --scope user
           done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: remoteble-skill
+          path: |
+            cli/build/distributions/remoteble-skill-*.zip
+            cli/build/distributions/remoteble-skill-*.zip.sha256

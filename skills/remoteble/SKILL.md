@@ -1,18 +1,13 @@
 ---
 name: remoteble
 description: >-
-  Operate and debug Bluetooth Low Energy hardware over a network through the RemoteBLE CLI
-  (`remoteble`). Use this skill whenever a task involves BLE or Bluetooth Low Energy peripherals,
-  GATT services and characteristics, reading or writing characteristic values, subscribing to
-  notifications, scanning for advertisements, a heart-rate monitor / sensor / beacon / dev board,
-  embedded firmware debugging over the air, hardware-in-the-loop testing, or a RemoteBLE agent —
-  even when the user does not name RemoteBLE or the CLI, and even when the device is on someone
-  else's desk. The radio does not have to be attached to this machine: that is the point of the
-  tool.
+  Operate a RemoteBLE-connected device with the `remoteble` CLI: preflight a RemoteBLE agent,
+  scan its remote BLE radio, inspect GATT, read characteristics, collect bounded notifications,
+  perform explicitly authorized writes, or diagnose a RemoteBLE hardware-in-the-loop run. Use
+  only when the task requires interaction with a RemoteBLE agent or a device reachable through
+  it. Do not use for general BLE explanations, Bluetooth audio, Web Bluetooth, implementing an
+  app or peripheral without RemoteBLE, or unrelated remote-agent work.
 license: Apache-2.0
-compatibility: >-
-  Requires the `remoteble` executable on PATH, shell access, and network reachability to a
-  RemoteBLE agent (0.11.0 or later) holding a bearer token in the environment.
 metadata:
   author: Warsha
   version: "0.1.0"
@@ -33,6 +28,13 @@ Three layers, deliberately separate:
 
 The skill is not a permission system and neither is the CLI. When something is refused, that is
 information, not an obstacle to route around.
+
+## Prerequisites
+
+Require a shell, the `remoteble` executable on `PATH`, and network reachability to a RemoteBLE
+agent compatible with this CLI. The agent endpoint and bearer token must already be configured by
+the operator. This skill does not install the CLI, create credentials, change policy, approve shell
+permissions, or grant write authority.
 
 ## Start every task here
 

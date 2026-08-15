@@ -14,6 +14,7 @@ This page is the design rationale. The Skill itself is shipped in
 skills/
 └── remoteble/
     ├── SKILL.md
+    ├── agents/openai.yaml
     └── references/
         ├── workflows.md
         ├── safety.md
@@ -31,11 +32,12 @@ to produce a subtly wrong client.
 ```yaml
 ---
 name: remoteble
-description: Operate and debug Bluetooth Low Energy devices through the RemoteBLE CLI. Use for BLE
-  scanning, GATT inspection, characteristic reads and authorized writes, notification collection,
-  remote hardware debugging, and hardware-in-the-loop testing.
+description: >-
+  Operate a RemoteBLE-connected device with the `remoteble` CLI. Use only when a task requires
+  interaction with a RemoteBLE agent or its remote BLE hardware. Do not use for general BLE
+  explanations, Bluetooth audio, Web Bluetooth, peripheral/application implementation without
+  RemoteBLE, or unrelated remote-agent work.
 license: Apache-2.0
-compatibility: Requires the remoteble executable, shell access, and connectivity to a RemoteBLE agent.
 metadata:
   author: Warsha
   version: "0.1.0"
@@ -130,3 +132,36 @@ The Skill should be usable outside any single agent product: plain markdown, no 
 names, no assumptions beyond a shell and the `remoteble` binary. That is also what makes it
 testable — the acceptance scenarios in [`mvp-scope.md`](mvp-scope.md#acceptance-scenarios) are
 runnable by a human following the same text.
+
+## Installation without MCP
+
+`remoteble skills install` is local-only: it does not read RemoteBLE configuration, contact an
+agent, or require credentials. With no options it chooses `--scope user --target auto`, prints that
+choice and every destination, installs the shared Codex/Gemini folder, and also installs Claude
+when `~/.claude` already exists.
+
+```bash
+remoteble skills install
+remoteble skills doctor
+remoteble skills install --target claude --scope user
+remoteble skills install --target codex --scope project --project-dir /work/device-firmware
+remoteble skills install --target android-studio --scope project
+```
+
+| Target | User destination | Project destination |
+|---|---|---|
+| Codex | `~/.agents/skills/remoteble` | `.agents/skills/remoteble` |
+| Gemini CLI | shared Codex destination | shared Codex destination |
+| Claude Code | `~/.claude/skills/remoteble` | `.claude/skills/remoteble` |
+| Android Studio | unsupported | `.agent/skills/remoteble` |
+
+Project scope requires a target and resolves to `--project-dir`, then the nearest Git root, then
+the current directory. Invoke the skill explicitly as `$remoteble`; compatible agents may also
+activate it implicitly from its narrow operational description. `agents/openai.yaml` enables that
+implicit invocation for Codex and deliberately declares no MCP dependency.
+
+The installer records file digests in `.remoteble-install.json`. A current copy is not rewritten.
+An altered or unmanaged copy is never replaced unless `--force` is given; forced replacement moves
+the old directory to a timestamped sibling backup. Remove the installed `remoteble` directory to
+uninstall. Installing the skill teaches procedure only — endpoint setup, tokens, policy, shell
+approval, and write authorization remain outside it.

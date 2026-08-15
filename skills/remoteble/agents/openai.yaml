@@ -1,0 +1,6 @@
+interface:
+  display_name: "RemoteBLE"
+  short_description: "Safely operate RemoteBLE-connected devices"
+  default_prompt: "Use $remoteble to safely inspect a RemoteBLE-connected BLE device."
+policy:
+  allow_implicit_invocation: true

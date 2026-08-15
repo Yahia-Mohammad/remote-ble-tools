@@ -67,6 +67,13 @@ class DocumentedCommandTest {
      * says.
      */
     private fun runForExitCode(arguments: List<String>): Pair<Int, String> {
+        // Installation is intentionally a local filesystem mutation. Help parsing verifies the
+        // documented command shape without allowing documentation tests to modify a developer's
+        // home directory or checkout.
+        if ("skills" in arguments) {
+            val result = buildCli().test(arguments + "--help")
+            return result.statusCode to (result.stderr + result.output)
+        }
         val cli = buildCli()
         return try {
             cli.parse(arguments)

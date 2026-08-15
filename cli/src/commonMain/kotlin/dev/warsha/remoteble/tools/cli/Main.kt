@@ -15,6 +15,7 @@ import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.versionOption
 import com.github.ajalt.clikt.parameters.types.choice
@@ -103,6 +104,7 @@ internal fun buildCli(): RootCommand {
         SessionCommand(root),
         ShellCommand(root),
         config,
+        SkillsCommand().subcommands(SkillInstallCommand(root), SkillDoctorCommand(root)),
     )
 }
 
@@ -370,11 +372,90 @@ internal abstract class RootChild(
         try {
             root.activate(global)
             action()
+        } catch (result: ProgramResult) {
+            throw result
         } catch (error: Throwable) {
             val failure = RootCommand.failure(error)
             root.emitFailure(failure)
             throw ProgramResult(failure.exitCode.value)
         }
+    }
+}
+
+private class SkillsCommand : CliktCommand(name = "skills") {
+    override fun run() = Unit
+    override fun help(context: Context): String = "Install and verify the bundled RemoteBLE Agent Skill locally."
+    override val printHelpOnEmptyArgs: Boolean = true
+    override val invokeWithoutSubcommand: Boolean = true
+}
+
+private abstract class SkillCommand(root: RootCommand, name: String, help: String) : RootChild(root, name, help) {
+    private val target: List<String> by option("--target", help = "codex, gemini, claude, android-studio, or auto.").multiple()
+    private val scope: String by option("--scope", help = "Install for one user or one project.").choice("user", "project").default("user")
+    private val projectDirectory: String? by option("--project-dir", help = "Project root; defaults to nearest Git root or current directory.")
+
+    protected fun installer(): SkillInstaller = SkillInstaller()
+    protected fun scope(): SkillScope = if (scope == "user") SkillScope.USER else SkillScope.PROJECT
+    protected fun destinations(installer: SkillInstaller): List<SkillDestination> = installer.resolve(scope(), target, projectDirectory)
+    protected fun requestedTargets(): List<String> = target.ifEmpty { listOf("auto") }
+    protected fun installData(results: List<SkillInstallResult>) = buildJsonObject {
+        put("scope", scope)
+        put("requestedTargets", JsonArray(requestedTargets().map(::JsonPrimitive)))
+        put("skillVersion", skillVersion())
+        put("cliVersion", CLI_VERSION)
+        put("targets", buildJsonArray {
+            results.forEach { result -> add(buildJsonObject {
+                put("path", result.diagnosis.destination.path)
+                put("targets", JsonArray(result.diagnosis.destination.targets.map { JsonPrimitive(it.cliName) }))
+                put("status", result.diagnosis.status.name.lowercase())
+                put("changed", result.changed)
+                result.backup?.let { put("backup", it) }
+            }) }
+        })
+    }
+}
+
+private class SkillInstallCommand(root: RootCommand) : SkillCommand(root, "install", "Install the embedded RemoteBLE skill without contacting an agent.") {
+    private val force: Boolean by option("--force", help = "Back up and replace a modified or unmanaged copy.").flag()
+
+    override fun run() = execute {
+        val installer = installer()
+        val results = destinations(installer).map { installer.install(it, force) }
+        val human = buildString {
+            append("scope=${scope().name.lowercase()} targets=${requestedTargets().joinToString(",")}")
+            results.forEach { result ->
+                append("\n${result.diagnosis.destination.path}: ${result.diagnosis.status.name.lowercase()}")
+                result.backup?.let { append(" (backup: $it)") }
+            }
+        }
+        root.emit("skills.install", installData(results), human)
+    }
+}
+
+private class SkillDoctorCommand(root: RootCommand) : SkillCommand(root, "doctor", "Verify locally installed RemoteBLE skill copies.") {
+    override fun run() = execute {
+        val installer = installer()
+        val diagnoses = destinations(installer).map(installer::diagnose)
+        val data = buildJsonObject {
+            put("scope", scope().name.lowercase())
+            put("requestedTargets", JsonArray(requestedTargets().map(::JsonPrimitive)))
+            put("skillVersion", skillVersion())
+            put("cliVersion", CLI_VERSION)
+            put("targets", buildJsonArray {
+                diagnoses.forEach { diagnosis -> add(buildJsonObject {
+                    put("path", diagnosis.destination.path)
+                    put("targets", JsonArray(diagnosis.destination.targets.map { JsonPrimitive(it.cliName) }))
+                    put("status", diagnosis.status.name.lowercase())
+                    diagnosis.detail?.let { put("detail", it) }
+                }) }
+            })
+        }
+        val human = buildString {
+            append("scope=${scope().name.lowercase()} targets=${requestedTargets().joinToString(",")}")
+            diagnoses.forEach { diagnosis -> append("\n${diagnosis.destination.path}: ${diagnosis.status.name.lowercase()}") }
+        }
+        root.emit("skills.doctor", data, human)
+        if (diagnoses.any { it.status != SkillStatus.CURRENT }) throw ProgramResult(ExitCode.FAILURE.value)
     }
 }
 

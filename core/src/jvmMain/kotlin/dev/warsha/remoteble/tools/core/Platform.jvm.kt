@@ -31,10 +31,14 @@ private val stdinLineReader = Thread({
 
 actual fun environmentVariable(name: String): String? = System.getenv(name)
 
-actual fun homeDirectory(): String = System.getProperty("user.home")
+// Respect HOME when a caller intentionally isolates local state (CI, sandboxes, skill installs).
+// Java's user.home otherwise remains the parent process's home even after ProcessBuilder overrides HOME.
+actual fun homeDirectory(): String = System.getenv("HOME")?.takeIf { it.isNotBlank() } ?: System.getProperty("user.home")
+actual fun workingDirectory(): String = System.getProperty("user.dir")
 actual fun isApplePlatform(): Boolean = System.getProperty("os.name").contains("mac", ignoreCase = true)
 
 actual fun fileExists(path: String): Boolean = Files.exists(Path.of(path))
+actual fun isDirectory(path: String): Boolean = Files.isDirectory(Path.of(path))
 
 actual fun readFileText(path: String): String = Files.readString(Path.of(path))
 
@@ -184,6 +188,18 @@ actual fun writeFileTextIfAbsent(path: String, value: String): Boolean = try {
 actual fun ensureDirectory(path: String) { Files.createDirectories(Path.of(path)) }
 actual fun listDirectory(path: String): List<String> = Files.list(Path.of(path)).use { stream -> stream.map { it.toString() }.toList() }
 actual fun deleteFile(path: String) { Files.deleteIfExists(Path.of(path)) }
+actual fun movePath(source: String, destination: String) {
+    try {
+        Files.move(Path.of(source), Path.of(destination), StandardCopyOption.ATOMIC_MOVE)
+    } catch (_: java.nio.file.AtomicMoveNotSupportedException) {
+        Files.move(Path.of(source), Path.of(destination))
+    }
+}
+actual fun deleteDirectoryRecursively(path: String) {
+    val root = Path.of(path)
+    if (!Files.exists(root)) return
+    Files.walk(root).use { paths -> paths.sorted(Comparator.reverseOrder()).forEach(Files::deleteIfExists) }
+}
 actual fun setOwnerOnly(path: String, directory: Boolean) {
     runCatching {
         Files.setPosixFilePermissions(Path.of(path), if (directory) {

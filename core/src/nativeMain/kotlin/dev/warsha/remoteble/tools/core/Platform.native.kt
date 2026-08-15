@@ -52,6 +52,7 @@ import platform.posix.pollfd
 import platform.posix.POLLIN
 import platform.posix.readdir
 import platform.posix.rewind
+import platform.posix.rmdir
 import platform.posix.signal
 import platform.posix.rename
 import platform.posix.stdin
@@ -75,10 +76,18 @@ private val ignoreSigpipe: Boolean = run {
 actual fun environmentVariable(name: String): String? = getenv(name)?.toKString()
 
 actual fun homeDirectory(): String = environmentVariable("HOME") ?: "."
+actual fun workingDirectory(): String = environmentVariable("PWD") ?: "."
 actual fun isApplePlatform(): Boolean = Platform.osFamily == OsFamily.MACOSX
 
 @OptIn(ExperimentalForeignApi::class)
 actual fun fileExists(path: String): Boolean = access(path, F_OK) == 0
+
+@OptIn(ExperimentalForeignApi::class)
+actual fun isDirectory(path: String): Boolean {
+    val directory = opendir(path) ?: return false
+    closedir(directory)
+    return true
+}
 
 @OptIn(ExperimentalForeignApi::class)
 actual fun readFileText(path: String): String {
@@ -302,6 +311,18 @@ actual fun listDirectory(path: String): List<String> {
 }
 @OptIn(ExperimentalForeignApi::class)
 actual fun deleteFile(path: String) { platform.posix.unlink(path) }
+@OptIn(ExperimentalForeignApi::class)
+actual fun movePath(source: String, destination: String) {
+    check(rename(source, destination) == 0) { "Cannot move $source" }
+}
+@OptIn(ExperimentalForeignApi::class)
+actual fun deleteDirectoryRecursively(path: String) {
+    if (!fileExists(path)) return
+    listDirectory(path).forEach { child ->
+        if (isDirectory(child)) deleteDirectoryRecursively(child) else platform.posix.unlink(child)
+    }
+    check(rmdir(path) == 0) { "Cannot remove directory $path" }
+}
 @OptIn(ExperimentalForeignApi::class)
 actual fun setOwnerOnly(path: String, directory: Boolean) {
     chmod(path, if (directory) 0x1c0u else 0x180u)

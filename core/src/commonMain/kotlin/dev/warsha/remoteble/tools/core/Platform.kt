@@ -5,8 +5,11 @@ import kotlin.uuid.Uuid
 
 expect fun environmentVariable(name: String): String?
 expect fun homeDirectory(): String
+/** The process working directory, used for local-only project-scoped commands. */
+expect fun workingDirectory(): String
 expect fun isApplePlatform(): Boolean
 expect fun fileExists(path: String): Boolean
+expect fun isDirectory(path: String): Boolean
 expect fun readFileText(path: String): String
 /** Reads bounded lines incrementally without materializing the complete file. */
 expect fun forEachFileLine(path: String, maximumLineBytes: Int, consume: (String) -> Unit)
@@ -30,6 +33,10 @@ expect fun writeFileTextIfAbsent(path: String, value: String): Boolean
 expect fun ensureDirectory(path: String)
 expect fun listDirectory(path: String): List<String>
 expect fun deleteFile(path: String)
+/** Moves a complete local path into place without copying individual files. */
+expect fun movePath(source: String, destination: String)
+/** Removes a directory tree owned by the caller. Do not use with user-selected broad paths. */
+expect fun deleteDirectoryRecursively(path: String)
 expect fun setOwnerOnly(path: String, directory: Boolean)
 expect fun <T> withFileLock(path: String, block: () -> T): T
 

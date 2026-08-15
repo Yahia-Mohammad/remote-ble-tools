@@ -1,8 +1,24 @@
 # Implementation progress
 
-Last updated: 2026-08-14 — final review fixes and complete local verification passed
+Last updated: 2026-08-15 — portable Agent Skill installer, packaging, and deterministic validation completed
 
 ## Current status
+
+**RemoteBLE CLI + Agent Skill integration is implementation-complete.** The CLI now embeds the
+canonical portable skill and exposes local-only `remoteble skills install` and `remoteble skills
+doctor` commands. They require no agent endpoint, credentials, or network access; support user and
+project scope for Codex/Gemini, Claude Code, and project-scoped Android Studio; use atomic staged
+replacement; record installer ownership and SHA-256 digests; refuse modified/unmanaged copies; and
+create timestamped backups only when forced. `doctor` reports `current`, `missing`, `outdated`,
+`modified`, or `invalid` and exits nonzero unless every selected copy is current.
+
+The human-readable skill ships in every JVM/native archive and as a separately checksummed
+`remoteble-skill-<version>.zip`. The executable embeds a Base64-backed copy, and deterministic
+checks prove the standalone ZIP, readable archive copy, and embedded source are identical while
+excluding evals and install-forbidden files. Local JVM integration coverage performs install,
+doctor, alteration refusal, forced replacement/backup, and Android Studio project installation;
+macOS Native install/doctor smoke also passes. The multi-provider behavioral and trigger evidence
+is prepared in [`skill-validation.md`](skill-validation.md) but remains a manual release gate.
 
 **The upstream half is done.** `feat/cli-readiness` was merged into `remote-ble-public` `main` as
 PR #9 and released as **`v0.11.0`** on 2026-08-10. That release carries `agent.status`,
@@ -91,6 +107,7 @@ JVM↔Native handoff, and formatting were rerun after the latest correctness rep
 | CLI configuration and streams | Automated coverage complete | Command/environment/profile/default precedence, bounded observe, persistent JSONL session, stream IDs, stop delivery, and human shell are present; packaged PTY/Ctrl-C/EOF, cleanup, broken-pipe, and deterministic backpressure coverage passes |
 | Local policy ledger and audit | Automated coverage complete | SHA-256-keyed rolling ledger rejects corrupt state, survives long keys, and passes JVM process contention, permissions, retention, debug fallback, multiprocess integrity, and identity-race tests; the matching macOS JVM↔Native handoff passes |
 | Release packaging and CI | Automated configuration complete | JVM and all three target-specific native archives build locally and include `remoteble`, `rble`, completions, LICENSE/NOTICE, per-target SHA256SUMS, and generated SBOMs; each native CI lane runs matching core/CLI tests, the synchronized lock handoff, and its extracted archive, while the package job runs the extracted JVM archive. First hosted results remain to be captured |
+| Portable Agent Skill distribution | Implementation complete; manual evidence pending | Canonical `skills/remoteble`, `agents/openai.yaml`, embedded Base64 bundle, local install/doctor, manifest/digest protection, readable archive copies, standalone ZIP/SHA-256, JSON schema, and deterministic JVM/native archive checks pass locally; Codex/Claude/Gemini/Android Studio behavioral evidence remains pending |
 | MVP acceptance scenarios | Passing locally against a live agent | 28 live tests via `:integration-tests:liveAgentTest` against the released 0.11.0 JVM agent in `--simulate` mode; scenarios 8–10 cover a typed simulated disconnect, diagnostic report, and complete cross-invocation workflow; allowed, local-policy-denied, and rate-limited writes cover all three frontends; and a raw CBOR/WebSocket client proves agent-side denied-write enforcement. The same suite is configured as a required CI job |
 | Native and hardware acceptance | Partially automated | macOS JVM↔Native lock handoff and extracted-archive smoke pass locally; matching Linux execution is configured in CI, while desktop-agent 2×2 physical evidence remains |
 
@@ -207,7 +224,11 @@ macOS cross-runtime locking all pass. No scripted test agent is required.
 2. Download the candidate archives from that exact run and perform the clean-install smoke on every
    matching target host, recording outer archive digests and extract-first manifest results.
 3. Complete the physical desktop 2×2 matrix and hardware-only `descriptor read`, then prepare the
-   redacted evidence record. Mobile and Raspberry Pi remain outside v0.1.
+   redacted evidence record. Also complete the portable-skill manual evidence: all eight behavioral
+   cases and the 10-positive/10-negative trigger suite with Codex, Claude Code, and Gemini CLI
+   (minimum 9/10 positive and 10/10 negative per agent), plus Android Studio project discovery and
+   explicit/implicit activation smoke. Record agent/model versions and redacted transcript locations
+   in [`skill-validation.md`](skill-validation.md). Mobile and Raspberry Pi remain outside v0.1.
 4. Create or designate the public repository, secret-scan the existing coherent history, decide
    whether the two internal planning documents are public, and configure branch protection,
    Dependabot, secret scanning, and private vulnerability reporting.

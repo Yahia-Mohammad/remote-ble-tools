@@ -10,7 +10,7 @@ _remoteble() {
         prev=${COMP_WORDS[COMP_CWORD-1]}
     fi
 
-    local commands='agent scan connect disconnect inspect read descriptor rssi observe write report session shell config'
+    local commands='agent scan connect disconnect inspect read descriptor rssi observe write report session shell config skills'
     local global='--config --profile --endpoint --client-id --token-stdin --json --jsonl --quiet --output --log-level --generate-completion --help --version'
     local child_global='--config --profile --endpoint --client-id --token-stdin --json --jsonl --quiet --output --log-level --help'
 
@@ -23,6 +23,7 @@ _remoteble() {
         --stdin) COMPREPLY=( $(compgen -W 'hex base64 text' -- "$cur") ); return ;;
         agent) COMPREPLY=( $(compgen -W 'status capabilities slots' -- "$cur") ); return ;;
         descriptor) COMPREPLY=( $(compgen -W 'read' -- "$cur") ); return ;;
+        skills) COMPREPLY=( $(compgen -W 'install doctor' -- "$cur") ); return ;;
     esac
 
     if [[ $cword -eq 1 ]]; then
@@ -47,6 +48,7 @@ _remoteble() {
         shell) COMPREPLY=( $(compgen -W "--operator $child_global" -- "$cur") ) ;;
         config) COMPREPLY=( $(compgen -W "show validate $child_global" -- "$cur") ) ;;
         descriptor) COMPREPLY=( $(compgen -W "read $child_global" -- "$cur") ) ;;
+        skills) COMPREPLY=( $(compgen -W "install doctor --target --scope --project-dir --force $child_global" -- "$cur") ) ;;
         *) COMPREPLY=( $(compgen -W "$global" -- "$cur") ) ;;
     esac
 }

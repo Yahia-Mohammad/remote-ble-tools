@@ -27,6 +27,9 @@ remoteble
 ├── config
 │   ├── show
 │   └── validate
+├── skills
+│   ├── install             install the embedded skill locally
+│   └── doctor              verify installed skill copies
 └── --version
 ```
 
@@ -37,6 +40,19 @@ connection-parameter commands. Reasons in [`mvp-scope.md`](mvp-scope.md#deferred
 shell: it supports quoting, foreground/background streams, `jobs`, and `stop`, but no expansion,
 redirection, subprocesses, or internal pipelines. Pipe the complete `session --jsonl` or
 `shell --jsonl` process when composing with other tools.
+
+### Install the Agent Skill
+
+```bash
+remoteble skills install
+remoteble skills doctor
+remoteble skills install --target codex --scope project --project-dir /work/device-firmware
+remoteble skills install --target android-studio --scope project
+```
+
+These commands are local-only and do not require an endpoint, token, or network access. `install`
+defaults to user-scope `auto`; `doctor` returns nonzero unless every selected copy is current. See
+[`agent-skill.md`](agent-skill.md#installation-without-mcp) for locations and replacement rules.
 
 ## Core workflows
 

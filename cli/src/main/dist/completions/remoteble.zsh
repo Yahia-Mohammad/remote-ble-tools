@@ -17,6 +17,7 @@ _remoteble() {
     'write:write only with enforced agent policy'
     'report:show recent local audit records'
     'config:show or validate configuration'
+    'skills:install or verify the bundled Agent Skill'
   )
   child_global=(
     '--config=[YAML configuration path]:path:_files'
@@ -54,6 +55,7 @@ _remoteble() {
         report) _arguments $child_global '--limit=[maximum audit records]:count' ;;
         session|shell) _arguments $child_global '--operator[present the operator credential]' ;;
         config) _arguments $child_global '1:config command:(show validate)' ;;
+        skills) _arguments $child_global '1:skills command:(install doctor)' '--target=[skill target]:target:(auto codex gemini claude android-studio)' '--scope=[installation scope]:scope:(user project)' '--project-dir=[project root]:path:_files' '--force[back up and replace a modified skill copy]' ;;
       esac ;;
   esac
 }

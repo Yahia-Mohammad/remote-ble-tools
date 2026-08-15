@@ -10,7 +10,8 @@
       "enum": [
         "agent.capabilities", "agent.status", "agent.slots", "scan", "scan.result",
         "connect", "disconnect", "inspect", "read", "descriptor.read", "rssi",
-        "observe.notification", "write", "report", "config.show", "config.validate", "error"
+        "observe.notification", "write", "report", "config.show", "config.validate",
+        "skills.install", "skills.doctor", "error"
       ]
     },
     "timestamp": { "type": "string", "format": "date-time" },
@@ -33,6 +34,8 @@
     { "if": { "properties": { "type": { "const": "report" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/report" } } } },
     { "if": { "properties": { "type": { "const": "config.show" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/config" } } } },
     { "if": { "properties": { "type": { "const": "config.validate" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/configValidation" } } } },
+    { "if": { "properties": { "type": { "const": "skills.install" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/skillInstall" } } } },
+    { "if": { "properties": { "type": { "const": "skills.doctor" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/skillDoctor" } } } },
     { "if": { "properties": { "type": { "const": "error" } } }, "then": { "properties": { "data": { "$ref": "#/$defs/error" } } } }
   ],
   "$defs": {
@@ -277,6 +280,43 @@
       "additionalProperties": false,
       "required": ["valid"],
       "properties": { "valid": { "const": true } }
+    },
+    "skillTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "targets", "status"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "targets": { "type": "array", "items": { "enum": ["codex", "gemini", "claude", "android-studio"] }, "minItems": 1, "uniqueItems": true },
+        "status": { "enum": ["current", "missing", "outdated", "modified", "invalid"] },
+        "detail": { "type": "string" },
+        "changed": { "type": "boolean" },
+        "backup": { "type": "string" }
+      }
+    },
+    "skillInstall": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "requestedTargets", "skillVersion", "cliVersion", "targets"],
+      "properties": {
+        "scope": { "enum": ["user", "project"] },
+        "requestedTargets": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "skillVersion": { "type": "string" },
+        "cliVersion": { "type": "string" },
+        "targets": { "type": "array", "items": { "$ref": "#/$defs/skillTarget" }, "minItems": 1 }
+      }
+    },
+    "skillDoctor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "requestedTargets", "skillVersion", "cliVersion", "targets"],
+      "properties": {
+        "scope": { "enum": ["user", "project"] },
+        "requestedTargets": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "skillVersion": { "type": "string" },
+        "cliVersion": { "type": "string" },
+        "targets": { "type": "array", "items": { "$ref": "#/$defs/skillTarget" }, "minItems": 1 }
+      }
     },
     "error": {
       "type": "object",

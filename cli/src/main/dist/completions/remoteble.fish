@@ -1,7 +1,7 @@
 complete -c remoteble -f
 complete -c rble -f
 
-for command in agent scan connect disconnect inspect read descriptor rssi observe write report session shell config
+for command in agent scan connect disconnect inspect read descriptor rssi observe write report session shell config skills
     complete -c remoteble -n '__fish_use_subcommand' -a $command
     complete -c rble -n '__fish_use_subcommand' -a $command
 end
@@ -13,6 +13,8 @@ for command in remoteble rble
     complete -c $command -n '__fish_seen_subcommand_from descriptor; and not __fish_seen_subcommand_from read' -a read
     complete -c $command -n '__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from show validate' -a show
     complete -c $command -n '__fish_seen_subcommand_from config; and not __fish_seen_subcommand_from show validate' -a validate
+    complete -c $command -n '__fish_seen_subcommand_from skills; and not __fish_seen_subcommand_from install doctor' -a install
+    complete -c $command -n '__fish_seen_subcommand_from skills; and not __fish_seen_subcommand_from install doctor' -a doctor
 end
 
 for option in '--token-stdin' '--json' '--jsonl' '--quiet' '--help' '--version'
@@ -45,4 +47,8 @@ for command in remoteble rble
     complete -c $command -n '__fish_seen_subcommand_from write' -l write-type -r -a 'with-response without-response'
     complete -c $command -n '__fish_seen_subcommand_from report' -l limit -r
     complete -c $command -n '__fish_seen_subcommand_from status session shell' -l operator
+    complete -c $command -n '__fish_seen_subcommand_from skills' -l target -r -a 'auto codex gemini claude android-studio'
+    complete -c $command -n '__fish_seen_subcommand_from skills' -l scope -r -a 'user project'
+    complete -c $command -n '__fish_seen_subcommand_from skills' -l project-dir -r -F
+    complete -c $command -n '__fish_seen_subcommand_from skills install' -l force
 end

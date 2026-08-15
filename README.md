@@ -58,6 +58,12 @@ installed JRE. Release CI should still smoke-test each binary on its matching op
 Release archives include a manual page in `dist/man/remoteble.1` and Bash, Fish, and Zsh completion
 assets in `dist/completions/`.
 
+Every archive also includes the human-readable Agent Skill at `dist/skills/remoteble`, and releases
+publish a separate `remoteble-skill-<version>.zip` with a SHA-256 sidecar. Install the embedded copy
+without MCP or credentials with `remoteble skills install`; see
+[`docs/agent-skill.md`](docs/agent-skill.md#installation-without-mcp) for targets, updates, and
+uninstallation.
+
 The distribution also includes `rble`, a short launcher alias. Use [examples/config.yaml](examples/config.yaml)
 as a starting configuration and set the agent token in its configured environment variable.
 Configuration precedence is command-line options, selected profile, configuration file, then built-in defaults.
@@ -78,6 +84,7 @@ session-local slots as global capacity.
 | [`docs/cli-reference.md`](docs/cli-reference.md) | Command surface, output contract, exit codes, configuration |
 | [`docs/safety-model.md`](docs/safety-model.md) | Write policy, where enforcement actually lives, untrusted device data, audit |
 | [`docs/agent-skill.md`](docs/agent-skill.md) | Skill layout, agent workflows, the BLE + serial correlation loop |
+| [`docs/skill-validation.md`](docs/skill-validation.md) | Deterministic checks and the manual multi-agent release evidence record |
 | [`docs/mvp-scope.md`](docs/mvp-scope.md) | v0.1 scope, deferrals with reasons, acceptance scenarios |
 | [`docs/profiles.md`](docs/profiles.md) | Semantic device profiles and their loop with RemoteBLE simulation (deferred, v1.1+) |
 | [`docs/implementation-plan.md`](docs/implementation-plan.md) | Phased implementation, upstream gates, architecture, tests, and release criteria |

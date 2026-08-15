@@ -51,6 +51,8 @@ class SchemaValidationTest {
             "report" to """{"records":[{"timestamp":"2026-08-14T00:00:00Z","operation":"read","result":"ok"}]}""",
             "config.show" to """{"schemaVersion":1,"agent":{"endpoint":"wss://agent.example","clientId":"derived","tokenEnvironmentVariable":"REMOTE_BLE_TOKEN","operatorTokenEnvironmentVariable":"unset"},"policy":{"readOnly":true,"maximumWriteBytes":512},"logging":{"level":"info","directory":"/tmp/remoteble"}}""",
             "config.validate" to """{"valid":true}""",
+            "skills.install" to """{"scope":"user","requestedTargets":["auto"],"skillVersion":"0.1.0","cliVersion":"0.1.0","targets":[{"path":"/tmp/.agents/skills/remoteble","targets":["codex","gemini"],"status":"current","changed":false}]}""",
+            "skills.doctor" to """{"scope":"project","requestedTargets":["android-studio"],"skillVersion":"0.1.0","cliVersion":"0.1.0","targets":[{"path":"/tmp/.agent/skills/remoteble","targets":["android-studio"],"status":"missing"}]}""",
             "error" to """{"exitCode":9,"message":"GATT operation failed","errorKind":"GATT","gattStatus":133,"holder":{"principal":"operator","clientId":"client-1"}}""",
         )
 

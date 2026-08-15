@@ -90,6 +90,11 @@ Run the interactive human shell.
 .TP
 .B config show|validate
 Inspect or validate effective configuration.
+.TP
+.B skills install|doctor
+Install or verify the embedded portable Agent Skill locally. These commands do not require RemoteBLE
+credentials or network access. Install defaults to user-scope auto detection; project scope requires
+an explicit target. Doctor exits nonzero unless all selected copies are current.
 .SH ENVIRONMENT
 .TP
 .B REMOTE_BLE_TOKEN

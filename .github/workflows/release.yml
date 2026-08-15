@@ -28,7 +28,7 @@ jobs:
           ./gradlew dependencies --no-daemon
           git diff --exit-code -- '**/gradle.lockfile' settings-gradle.lockfile
       - name: Verify and package the tagged commit
-        run: ./gradlew :core:jvmTest :cli:jvmTest :integration-tests:test :integration-tests:fetchAgent :integration-tests:liveAgentTest :cli:releaseArchive formatCheck -Premoteble.agent.required=true -Premoteble.version="${GITHUB_REF_NAME#v}"
+        run: ./gradlew :core:jvmTest :cli:validateSkill :cli:jvmTest :integration-tests:test :integration-tests:fetchAgent :integration-tests:liveAgentTest :cli:releaseArchive :cli:skillChecksum formatCheck -Premoteble.agent.required=true -Premoteble.version="${GITHUB_REF_NAME#v}"
       - run: |
           unzip -q cli/build/distributions/remoteble-*.zip -d "$RUNNER_TEMP/jvm-release"
           ( cd "$RUNNER_TEMP/jvm-release" && shasum -a 256 -c SHA256SUMS )
@@ -37,10 +37,14 @@ jobs:
           "$RUNNER_TEMP/jvm-release/dist/bin/remoteble" --version
           test -f "$RUNNER_TEMP/jvm-release/dist/completions/remoteble.bash"
           test -f "$RUNNER_TEMP/jvm-release/dist/man/remoteble.1"
+          test -f "$RUNNER_TEMP/jvm-release/dist/skills/remoteble/SKILL.md"
+          ( cd cli/build/distributions && shasum -a 256 -c remoteble-skill-*.zip.sha256 )
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: remoteble-jvm
-          path: cli/build/distributions/remoteble-*.zip
+          path: |
+            cli/build/distributions/remoteble-*.zip
+            cli/build/distributions/remoteble-skill-*.zip.sha256
           if-no-files-found: error
 
   native-macos:
@@ -59,6 +63,7 @@ jobs:
           ( cd "$RUNNER_TEMP/macos-release" && shasum -a 256 -c SHA256SUMS )
           test -f "$RUNNER_TEMP/macos-release/dist/completions/remoteble.bash"
           test -f "$RUNNER_TEMP/macos-release/dist/man/remoteble.1"
+          test -f "$RUNNER_TEMP/macos-release/dist/skills/remoteble/SKILL.md"
           "$RUNNER_TEMP/macos-release/dist/bin/remoteble" --version
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -82,6 +87,7 @@ jobs:
           ( cd "$RUNNER_TEMP/linux-x64-release" && shasum -a 256 -c SHA256SUMS )
           test -f "$RUNNER_TEMP/linux-x64-release/dist/completions/remoteble.bash"
           test -f "$RUNNER_TEMP/linux-x64-release/dist/man/remoteble.1"
+          test -f "$RUNNER_TEMP/linux-x64-release/dist/skills/remoteble/SKILL.md"
           "$RUNNER_TEMP/linux-x64-release/dist/bin/remoteble" --version
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -105,6 +111,7 @@ jobs:
           ( cd "$RUNNER_TEMP/linux-arm64-release" && shasum -a 256 -c SHA256SUMS )
           test -f "$RUNNER_TEMP/linux-arm64-release/dist/completions/remoteble.bash"
           test -f "$RUNNER_TEMP/linux-arm64-release/dist/man/remoteble.1"
+          test -f "$RUNNER_TEMP/linux-arm64-release/dist/skills/remoteble/SKILL.md"
           "$RUNNER_TEMP/linux-arm64-release/dist/bin/remoteble" --version
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -126,5 +133,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" $(find release-artifacts -type f -name '*.zip' -print) \
+          gh release create "$GITHUB_REF_NAME" $(find release-artifacts -type f \( -name '*.zip' -o -name '*.zip.sha256' \) -print) \
             --verify-tag --title "$GITHUB_REF_NAME" --generate-notes

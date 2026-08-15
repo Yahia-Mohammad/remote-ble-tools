@@ -1,7 +1,7 @@
 package dev.warsha.remoteble.tools.core
 
 /** Small dependency-free SHA-256 implementation used for opaque local state keys. */
-internal fun sha256Hex(value: String): String {
+fun sha256Hex(value: String): String {
     val input = value.encodeToByteArray()
     val bitLength = input.size.toLong() * 8L
     val padding = (56 - ((input.size + 1) % 64) + 64) % 64

@@ -7,6 +7,9 @@ import org.gradle.jvm.tasks.Jar
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.bundling.Zip
 import java.security.MessageDigest
+import java.util.Base64
+import java.util.zip.ZipFile
+import groovy.json.JsonSlurper
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -83,6 +86,69 @@ kotlin.sourceSets.getByName("commonMain").kotlin.srcDir(generatedVersionDir)
 tasks.withType<KotlinCompile>().configureEach { dependsOn(generateCliVersion) }
 tasks.withType<KotlinNativeCompile>().configureEach { dependsOn(generateCliVersion) }
 
+/** Compiles the canonical, text-readable skill into every executable; no adjacent checkout is read at runtime. */
+val generatedSkillDir = layout.buildDirectory.dir("generated/skill")
+val skillSource = rootProject.file("skills/remoteble")
+val generateEmbeddedSkill = tasks.register("generateEmbeddedSkill") {
+    group = "build"
+    inputs.files(rootProject.fileTree(skillSource) { exclude("evals/**") }).withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir(generatedSkillDir)
+    doLast {
+        val files = skillSource.walkTopDown().filter { it.isFile && !it.relativeTo(skillSource).invariantSeparatorsPath.startsWith("evals/") }.sortedBy { it.relativeTo(skillSource).path }.toList()
+        val version = Regex("(?m)^  version: [\\\"]?([^\\\"\\s]+)").find(skillSource.resolve("SKILL.md").readText())?.groupValues?.get(1)
+            ?: error("skills/remoteble/SKILL.md is missing metadata.version")
+        val source = generatedSkillDir.get().file("dev/warsha/remoteble/tools/cli/EmbeddedSkill.kt").asFile
+        source.parentFile.mkdirs()
+        source.writeText(buildString {
+            appendLine("package dev.warsha.remoteble.tools.cli")
+            appendLine()
+            appendLine("internal data class EmbeddedSkillFile(val path: String, val base64: String)")
+            appendLine("internal const val EMBEDDED_SKILL_VERSION: String = \"$version\"")
+            appendLine("internal fun embeddedSkillFiles(): List<EmbeddedSkillFile> = listOf(")
+            files.forEach { file ->
+                val path = file.relativeTo(skillSource).invariantSeparatorsPath
+                appendLine("    EmbeddedSkillFile(\"$path\", \"${Base64.getEncoder().encodeToString(file.readBytes())}\"),")
+            }
+            appendLine(")")
+        })
+    }
+}
+kotlin.sourceSets.getByName("commonMain").kotlin.srcDir(generatedSkillDir)
+tasks.withType<KotlinCompile>().configureEach { dependsOn(generateEmbeddedSkill) }
+tasks.withType<KotlinNativeCompile>().configureEach { dependsOn(generateEmbeddedSkill) }
+
+val validateSkill = tasks.register("validateSkill") {
+    group = "verification"
+    description = "Validates the portable RemoteBLE Agent Skill without invoking a model."
+    inputs.files(rootProject.fileTree(skillSource)).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.property("remoteble.version", project.version.toString())
+    doLast {
+        val skill = skillSource.resolve("SKILL.md")
+        val text = skill.readText()
+        val frontmatter = Regex("\\A---\\n([\\s\\S]*?)\\n---").find(text)?.groupValues?.get(1) ?: error("SKILL.md needs YAML frontmatter")
+        check(Regex("(?m)^name: remoteble$").containsMatchIn(frontmatter)) { "skill name must be remoteble" }
+        val description = Regex("(?m)^description: >-\\n((?:  .*\\n)+)").find(frontmatter)?.groupValues?.get(1)?.trim()?.replace(Regex("\\s+"), " ")
+            ?: error("skill description must use a folded scalar")
+        check(description.length in 80..1024) { "skill description must be 80-1024 characters" }
+        check(!frontmatter.contains("compatibility:")) { "compatibility belongs in the body prerequisites section" }
+        val skillVersion = Regex("(?m)^  version: [\\\"]?([^\\\"\\s]+)").find(frontmatter)?.groupValues?.get(1) ?: error("metadata.version is required")
+        check(skillVersion == project.version.toString() || (project.version.toString() == "0.1.0-SNAPSHOT" && skillVersion == "0.1.0")) { "skill metadata version does not match release version" }
+        check(text.lineSequence().count() <= 500) { "SKILL.md must remain under 500 lines" }
+        Regex("\\[[^]]+]\\(([^)#]+)(?:#[^)]+)?\\)").findAll(text).forEach { match -> check(skillSource.resolve(match.groupValues[1]).isFile) { "missing skill reference ${match.groupValues[1]}" } }
+        val forbidden = skillSource.walkTopDown().filter { it.isFile && !it.relativeTo(skillSource).invariantSeparatorsPath.startsWith("evals/") }.filter { file ->
+            val path = file.relativeTo(skillSource).invariantSeparatorsPath
+            path.startsWith("config/") || path.startsWith("policy/") || path.startsWith("credentials/") || path == "config.yaml" || path == "policy.yaml"
+        }.toList()
+        check(forbidden.isEmpty()) { "install-forbidden skill files: $forbidden" }
+        listOf("evals.json", "trigger-evals.json").forEach { name -> JsonSlurper().parse(skillSource.resolve("evals/$name")) }
+        val cases = JsonSlurper().parse(skillSource.resolve("evals/trigger-evals.json")) as? List<*>
+            ?: error("trigger-evals.json must be an array")
+        val positives = cases.count { (it as Map<*, *>)["should_trigger"] == true }
+        check(positives == 10 && cases.size - positives == 10) { "trigger cases must contain 10 positive and 10 negative prompts" }
+    }
+}
+tasks.matching { it.name.endsWith("Test") }.configureEach { dependsOn(validateSkill) }
+
 tasks.register<Jar>("fatJar") {
     group = "distribution"
     archiveBaseName.set("remoteble")
@@ -126,6 +192,7 @@ tasks.named<CyclonedxDirectTask>("cyclonedxDirectBom") {
 
 val releaseArtifacts = tasks.register<Sync>("releaseArtifacts") {
     group = "distribution"
+    dependsOn(validateSkill)
     dependsOn("fatJar")
     dependsOn("cyclonedxDirectBom")
     into(releaseStage)
@@ -134,6 +201,7 @@ val releaseArtifacts = tasks.register<Sync>("releaseArtifacts") {
     from(rootProject.file("NOTICE"))
     from("src/main/dist") { into("dist"); exclude("bin/**") }
     from("src/main/dist/bin") { into("dist/bin"); filePermissions { unix("0755") } }
+    from(skillSource) { into("dist/skills/remoteble"); exclude("evals/**") }
     from(bomJsonOutput) { rename { "sbom.json" } }
     doLast {
         val stage = releaseStage.get().asFile
@@ -145,6 +213,49 @@ val releaseArtifacts = tasks.register<Sync>("releaseArtifacts") {
         stage.resolve("SHA256SUMS").writeText(checksums)
     }
 }
+
+val skillArchive = tasks.register<Zip>("skillArchive") {
+    group = "distribution"
+    dependsOn(validateSkill)
+    archiveBaseName.set("remoteble-skill")
+    archiveVersion.set(project.version.toString())
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+    from(skillSource) { into("remoteble"); exclude("evals/**") }
+}
+val skillChecksum = tasks.register("skillChecksum") {
+    group = "distribution"
+    dependsOn(skillArchive)
+    val checksum = layout.buildDirectory.file("distributions/remoteble-skill-${project.version}.zip.sha256")
+    outputs.file(checksum)
+    doLast {
+        val archive = skillArchive.get().archiveFile.get().asFile
+        val digest = MessageDigest.getInstance("SHA-256").digest(archive.readBytes()).joinToString("") { b -> "%02x".format(b) }
+        checksum.get().asFile.writeText("$digest  ${archive.name}\n")
+    }
+}
+val verifySkillArchive = tasks.register("verifySkillArchive") {
+    group = "verification"
+    description = "Asserts the standalone readable skill exactly matches the generated embedded bundle input."
+    dependsOn(skillArchive, generateEmbeddedSkill)
+    inputs.files(rootProject.fileTree(skillSource) { exclude("evals/**") }).withPathSensitivity(PathSensitivity.RELATIVE)
+    doLast {
+        val expected = skillSource.walkTopDown().filter { it.isFile && !it.relativeTo(skillSource).invariantSeparatorsPath.startsWith("evals/") }
+            .associate { it.relativeTo(skillSource).invariantSeparatorsPath to it.readBytes() }
+        val archive = skillArchive.get().archiveFile.get().asFile
+        val archived = ZipFile(archive).use { zip ->
+            zip.entries().asSequence().filter { !it.isDirectory }.associate { entry ->
+                entry.name.removePrefix("remoteble/") to zip.getInputStream(entry).readBytes()
+            }
+        }
+        check(archived.keys == expected.keys) { "standalone skill ZIP has different files from the embedded bundle source" }
+        expected.forEach { (path, bytes) -> check(archived[path]?.contentEquals(bytes) == true) { "standalone skill ZIP differs at $path" } }
+        val generated = generatedSkillDir.get().file("dev/warsha/remoteble/tools/cli/EmbeddedSkill.kt").asFile.readText()
+        expected.forEach { (path, bytes) ->
+            check(generated.contains("EmbeddedSkillFile(\"$path\", \"${Base64.getEncoder().encodeToString(bytes)}\")")) { "embedded bundle differs at $path" }
+        }
+    }
+}
+releaseArtifacts.configure { dependsOn(verifySkillArchive) }
 
 tasks.register<Zip>("releaseArchive") {
     group = "distribution"
@@ -185,6 +296,7 @@ listOf(
     val nativeStage = layout.buildDirectory.dir("native-release-stage/${spec.target}")
     val nativeReleaseArtifacts = tasks.register<Sync>("${spec.target}ReleaseArtifacts") {
         group = "distribution"
+    dependsOn(validateSkill, verifySkillArchive)
         dependsOn(":cli:${spec.linkTask}")
         dependsOn(nativeBomTask)
         into(nativeStage)
@@ -196,7 +308,8 @@ listOf(
         }
         from("src/main/dist/bin/rble") { into("dist/bin"); filePermissions { unix("0755") } }
         from("src/main/dist/completions") { into("dist/completions") }
-        from("src/main/dist/man") { into("dist/man") }
+    from("src/main/dist/man") { into("dist/man") }
+        from(skillSource) { into("dist/skills/remoteble"); exclude("evals/**") }
         from(rootProject.file("LICENSE"))
         from(rootProject.file("NOTICE"))
         from(nativeBomJson) { rename { "sbom.json" } }
