@@ -32,10 +32,5 @@ back into this repository.
 ## Targets
 
 The common client and Clikt command tree compile for JVM, macOS ARM64, Linux x64, and Linux ARM64.
-Native binaries are built and tested on a matching host; the JVM fat JAR remains as a compatibility
-and black-box-test artifact, and is the fallback for any host without a native build.
-
-There is deliberately **no native Intel macOS target**. Kotlin/Native deprecates `macosX64` and will
-remove it, tracking Apple's own wind-down, and GitHub's Intel runners are retiring too — so a native
-Intel binary would arrive already on a countdown. Intel macOS is served by the JVM artifact, which
-needs a JDK but no separate build target. Revisit only if users ask.
+Native binaries are built and tested on a matching host. The JVM fat JAR is available on hosts
+without a native distribution.

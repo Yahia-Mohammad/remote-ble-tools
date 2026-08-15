@@ -16,9 +16,8 @@ Gemini CLI passes all behavioral assertions, triggers at least 9 of 10 positives
 10 negatives. Then install project-scoped into Android Studio and smoke-test discovery plus explicit
 and implicit activation.
 
-## Evidence template
+## Recording results
 
-Record one row per agent in [`docs/skill-validation.md`](../../../docs/skill-validation.md): date,
-provider and model versions, CLI/skill versions, behavioral score, trigger score, Android result
-when relevant, reviewer, and a redacted transcript location. Do not commit credentials, endpoint
-tokens, unredacted device identifiers, or provider session data.
+Record the date, provider and model versions, CLI and skill versions, behavioral score, trigger
+score, Android result when relevant, reviewer, and a redacted transcript location. Do not commit
+credentials, endpoint tokens, unredacted device identifiers, or provider session data.

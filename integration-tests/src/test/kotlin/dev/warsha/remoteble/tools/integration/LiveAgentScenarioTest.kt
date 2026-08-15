@@ -32,14 +32,13 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.TestInstance
 
 /**
- * The MVP acceptance scenarios, run by the packaged CLI against a live radio-less agent.
+ * Live-agent integration cases, run by the packaged CLI against a radio-less agent.
  *
  * This is the only coverage in the repository that exercises the wire. Everything else asserts what
  * this code does with its own types; these assert what a released agent actually answers, which is
  * where a protocol mistake would surface.
  *
- * Scenario numbering follows `docs/mvp-scope.md`. Scenarios needing a real radio are noted where
- * they are skipped rather than silently omitted.
+ * Cases requiring a real radio are noted where they are skipped rather than silently omitted.
  */
 @Tag("live-agent")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)

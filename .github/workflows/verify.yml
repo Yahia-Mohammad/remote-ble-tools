@@ -57,7 +57,7 @@ jobs:
         run: ./gradlew :integration-tests:fetchAgent
       # `remoteble.agent.required` makes a misconfigured agent fail the job rather than skip every
       # scenario and report green.
-      - name: Run the MVP acceptance scenarios
+      - name: Run live-agent integration tests
         run: ./gradlew :integration-tests:liveAgentTest -Premoteble.agent.required=true
       - name: Upload acceptance evidence
         if: failure()
@@ -67,8 +67,6 @@ jobs:
           path: integration-tests/build/reports/tests/liveAgentTest
 
   native-macos:
-    # macos-14 entered deprecation on 2026-07-06 and is unsupported from 2026-11-02; brownouts run
-    # during that window, so the arm64 job builds on the current image instead.
     runs-on: macos-15
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0

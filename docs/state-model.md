@@ -47,7 +47,7 @@ falls out of the window between almost every step, silently paying a full reconn
 rediscovery each time. On real hardware that is seconds per command, and on a contended rig it
 means the lease is released and may be taken by someone else mid-procedure.
 
-## Decision
+## Client identity
 
 **One-shot commands do not disconnect.** They connect if needed, discover if needed, perform the
 operation, close the transport, and deliberately leave the peripheral connected and leased. The
@@ -68,18 +68,13 @@ outlives its process, which is the only reading under which those commands mean 
 It also makes `remoteble agent status` important rather than cosmetic — it is how a user discovers
 what they are still holding.
 
-### Consequence: this required an upstream change
+### Agent configuration
 
-The grace window had to become operator-configurable and default higher for CLI use. On the desktop
-agents this is **done**: the JVM agent reads `REMOTE_BLE_TRANSPORT_GRACE_MS` and
+On desktop agents, the JVM agent reads `REMOTE_BLE_TRANSPORT_GRACE_MS` and
 `REMOTE_BLE_LEASE_GRACE_MS`, `agent-rs` takes `--transport-grace-ms` / `--lease-grace-ms`, and the
-transport-grace default is now **120 seconds**. BLE-disconnect grace remains 10 seconds.
+transport-grace default is **120 seconds**. BLE-disconnect grace remains 10 seconds.
 
-What is still open is the phone agents: Android and iOS expose no operator control for either
-window, which is what gates the mobile half of hardware acceptance.
-
-There is no client-side workaround for the remainder, and there never was one: the timer runs on the
-agent.
+Android and iOS agents do not expose operator configuration for either window.
 
 ### Consequence: holding is a cost on shared hardware
 
@@ -91,19 +86,6 @@ in order of preference:
 2. `agent status` shows held leases and their remaining grace.
 3. A lease-denied error names the current holder's principal, so contention is diagnosable rather
    than a mysterious timeout.
-
-## Rejected alternative: a local daemon
-
-A `remoteble session start` daemon holding the socket, with commands talking to it over a unix
-socket, needs no upstream change and holds the lease exactly as long as the session is explicitly
-open — strictly better semantics.
-
-It is rejected for v0.1 because it adds a daemon lifecycle (start, discover, health, stale socket,
-crash recovery, concurrent sessions) to a project whose entire thesis is that it is thin. The
-grace-window change is a few lines upstream and benefits every RemoteBLE client, not just this one.
-
-**Keep it as the documented fallback.** If shared-rig contention proves the window approach wrong
-in practice, this is the answer, and the `core` module boundary should not assume otherwise.
 
 ## Command classification
 

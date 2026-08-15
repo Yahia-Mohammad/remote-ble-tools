@@ -33,9 +33,6 @@ remoteble
 └── --version
 ```
 
-Deferred to later versions: `run` (recipes), `descriptor write`, `pair`, `unpair`, and
-connection-parameter commands. Reasons in [`mvp-scope.md`](mvp-scope.md#deferred-and-why).
-
 `session --jsonl` is the coding-agent interface. `shell` is a small interactive client, not an OS
 shell: it supports quoting, foreground/background streams, `jobs`, and `stop`, but no expansion,
 redirection, subprocesses, or internal pipelines. Pipe the complete `session --jsonl` or
@@ -51,8 +48,7 @@ remoteble skills install --target android-studio --scope project
 ```
 
 These commands are local-only and do not require an endpoint, token, or network access. `install`
-defaults to user-scope `auto`; `doctor` returns nonzero unless every selected copy is current. See
-[`agent-skill.md`](agent-skill.md#installation-without-mcp) for locations and replacement rules.
+defaults to user-scope `auto`; `doctor` returns nonzero unless every selected copy is current.
 
 ## Core workflows
 
@@ -91,7 +87,7 @@ Selectors must resolve to exactly one device; otherwise the CLI refuses the oper
 a handle from `scan`.
 
 Connects and discovers as needed, prints the GATT tree with SIG UUIDs resolved to names, and
-**leaves the peripheral connected and leased** — see [`state-model.md`](state-model.md#decision).
+**leaves the peripheral connected and leased**. See [`state-model.md`](state-model.md).
 
 ### Read a characteristic
 
@@ -160,38 +156,6 @@ See [`session-protocol.md`](session-protocol.md) and the versioned schemas in `s
 machine protocol. A session keeps one transport open, tags every record with a UTC timestamp and
 monotonic sequence, and stops asynchronous streams by ID.
 
-### Recipes (deferred)
-
-A later version can support declarative procedures:
-
-```yaml
-schemaVersion: 1
-
-device:
-  service: "180d"
-  namePrefix: "Test HRM"
-
-steps:
-  - connect
-  - discover
-  - read:      { service: "180f", characteristic: "2a19", as: battery }
-  - observe:   { service: "180d", characteristic: "2a37", count: 10, timeout: 30s, as: measurements }
-  - disconnect
-
-assertions:
-  - battery.value > 10
-  - measurements.count == 10
-```
-
-```text
-remoteble run heart-rate-smoke-test.yaml     # not implemented
-```
-
-`remoteble run` **does not exist today** — the block above is a sketch of a proposed interface, not
-a command to try. This is the hardware-in-the-loop CI story, and it is deferred on purpose: it is a second language
-to design, and the shell already expresses most of it. Build it when scripts in `examples/` prove
-repetitive, not before.
-
 ## Output contract
 
 ### Modes
@@ -228,7 +192,7 @@ and `sequence` in `--jsonl`. The envelopes below are emitted on one line; they a
 reading.
 
 `remoteble read dev_42 180f 2a19 --json` — byte values always carry both encodings and a length.
-There is no decoded or typed rendering in v0.1:
+There is no decoded or typed rendering:
 
 ```json
 {

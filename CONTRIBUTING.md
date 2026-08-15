@@ -15,7 +15,7 @@ for the changed module and then the standard JVM checks:
 
 Run `:integration-tests:liveAgentTest -Premoteble.agent.required=true` when changing the wire
 protocol, CLI lifecycle, or integration fixtures. It starts the pinned released agent in
-radio-less simulation; it is not a replacement for the real-hardware release gate.
+radio-less simulation; use hardware testing when a change depends on real radio behavior.
 
 Native changes need the matching target test. On a matching host, also run:
 
@@ -32,8 +32,7 @@ Native changes need the matching target test. On a matching host, also run:
 - Test actual process boundaries for stream, signal, output, locking, or persistence changes; a
   unit test alone is not sufficient evidence for those behaviors.
 - Do not add a second agent implementation solely for tests. The released JVM simulator is the
-  normal integration peer; real-hardware validation follows
-  [`docs/hardware-validation.md`](docs/hardware-validation.md).
+  normal integration peer; use hardware testing where simulation cannot establish behavior.
 - Keep commits focused and explain user-visible or protocol-visible behavior in the pull request.
 
 For security-sensitive issues, follow [`SECURITY.md`](SECURITY.md) rather than opening a public

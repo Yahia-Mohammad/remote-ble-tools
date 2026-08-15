@@ -2,8 +2,7 @@
 
 ## Supported versions
 
-Before `v0.1.0` is released, security fixes apply to the current `main` branch. After release, the
-latest v0.1 patch release will be supported until the next minor release.
+Security fixes apply to the current `main` branch.
 
 ## Reporting a vulnerability
 
@@ -14,7 +13,7 @@ Use the repository's **Private vulnerability reporting** feature once it is enab
 minimal reproduction, affected CLI and agent versions, the operating systems involved, and any
 safe redacted logs. Do not include bearer tokens, operator credentials, or real write payloads.
 
-Pull requests are checked by a read-only full-history secret scan and dependency review. These are
+Pull requests are checked by a read-only secret scan and dependency review. These are
 defense-in-depth checks, not a substitute for keeping credentials out of commands, logs, issues,
 and commits.
 

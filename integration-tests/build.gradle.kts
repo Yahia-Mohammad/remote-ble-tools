@@ -82,7 +82,7 @@ tasks.register<Test>("nativeLockHandoffTest") {
 }
 
 /**
- * Runs the MVP acceptance scenarios against a live radio-less agent.
+ * Runs the live-agent integration suite against a radio-less agent.
  *
  * It starts one released JVM agent with `--simulate` for the whole suite, so this is the only task
  * that exercises the wire protocol end to end. Kept separate from `test` because it is slow (one
@@ -90,7 +90,7 @@ tasks.register<Test>("nativeLockHandoffTest") {
  */
 tasks.register<Test>("liveAgentTest") {
     group = "verification"
-    description = "Runs the MVP acceptance scenarios against a simulated RemoteBLE agent."
+    description = "Runs the live-agent integration suite against a simulated RemoteBLE agent."
     testClassesDirs = sourceSets.test.get().output.classesDirs
     classpath = sourceSets.test.get().runtimeClasspath
     sharedConfiguration()

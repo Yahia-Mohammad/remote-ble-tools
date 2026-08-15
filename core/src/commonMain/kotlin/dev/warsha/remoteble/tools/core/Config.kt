@@ -69,7 +69,7 @@ data class PolicyConfig(
     val writeRateWindow: String = "60s",
 )
 
-/** A local advisory allowlist entry. Every routing value is exact; v0.1 has no wildcards. */
+/** A local advisory allowlist entry. Every routing value is exact; wildcards are not supported. */
 @Serializable
 data class WriteRuleConfig(
     val endpoint: String,

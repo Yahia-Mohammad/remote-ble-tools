@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
  * radio-less mode; the Rust agent has no equivalent and cannot be used here. The JAR path arrives as
  * the `remoteble.agent.jar` system property so the build — not this code — owns how it is obtained.
  *
- * Two principals are configured because two acceptance scenarios need a second identity: the
+ * Two principals are configured because contention tests need a second identity: the
  * agent-side denied-write proof, and lease contention. The write policy allowlists exactly one
  * characteristic for `primary` and nothing for `secondary`, so a denial is the agent's decision and
  * not this CLI's local advisory policy.
