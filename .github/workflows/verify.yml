@@ -64,10 +64,17 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: acceptance-results
-          path: integration-tests/build/reports/tests/liveAgentTest
+          path: |
+            integration-tests/build/reports/tests/liveAgentTest
+            integration-tests/build/live-agent-run/agent.log
 
   native-macos:
-    runs-on: macos-15
+    # TEMPORARY -- REVERT TO `runs-on: macos-15` WHEN THIS REPO GOES PUBLIC.
+    # Self-hosted only to avoid the 10x macOS billing while the repo is still private. Public repos
+    # get free Actions minutes, and a self-hosted runner on a public repo is a security hole (fork
+    # PRs would execute arbitrary code on the Mac). Revert this block and the timeout below together.
+    runs-on: [self-hosted, macOS, apple]
+    timeout-minutes: 120  # relaxed for the local runner; restore to 30 on revert
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0

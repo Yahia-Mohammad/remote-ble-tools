@@ -63,7 +63,17 @@ internal object LiveAgent {
 
     private val port: Int by lazy { freePort() }
 
-    private val workspace: Path by lazy { Files.createTempDirectory("remoteble-live-agent") }
+    /**
+     * The build points this at the module's build directory so CI can upload `agent.log` as failure
+     * evidence; it falls back to a temp dir when unset. A TRANSPORT_LOST failure says only that the
+     * CLI lost the agent -- the agent's own log is the sole record of why, and in a temp dir it died
+     * with the runner.
+     */
+    private val workspace: Path by lazy {
+        val configured = System.getProperty("remoteble.agent.workspace")?.takeIf { it.isNotBlank() }
+        if (configured == null) Files.createTempDirectory("remoteble-live-agent")
+        else Path.of(configured).also { Files.createDirectories(it) }
+    }
 
     private val process: Process by lazy { start() }
 
