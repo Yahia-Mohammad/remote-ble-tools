@@ -371,17 +371,18 @@ jobs:
           archive_url="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/$archive"
           packaging/render-homebrew-formula.sh "$VERSION" "$archive_url" "$sha256" Formula/remoteble.rb
           HOMEBREW_NO_AUTO_UPDATE=1 brew style Formula/remoteble.rb
-          # `brew audit` stopped accepting a path in Homebrew 6.x (dev-cmd/audit.rb odisables
-          # `brew audit [path ...]`), so the formula has to resolve by name. Stage it in a
+          # Homebrew 6.x takes a path for `brew style` only: `brew audit` odisables path
+          # arguments outright, and `brew install` rejects any formula that is not in a tap.
+          # Both therefore resolve the formula by name. Stage it in a
           # throwaway tap; the cleanup step below removes it even when this step fails, which
           # matters on the self-hosted runner where /opt/homebrew persists between jobs.
           brew untap remoteble/formula-check 2>/dev/null || true
           brew tap-new --no-git remoteble/formula-check
           cp Formula/remoteble.rb "$(brew --repository remoteble/formula-check)/Formula/remoteble.rb"
           HOMEBREW_NO_AUTO_UPDATE=1 brew audit --strict remoteble/formula-check/remoteble
-          HOMEBREW_NO_AUTO_UPDATE=1 brew install --formula Formula/remoteble.rb
+          HOMEBREW_NO_AUTO_UPDATE=1 brew install --formula remoteble/formula-check/remoteble
           HOMEBREW_NO_AUTO_UPDATE=1 brew test remoteble
-          HOMEBREW_NO_AUTO_UPDATE=1 brew reinstall --formula Formula/remoteble.rb
+          HOMEBREW_NO_AUTO_UPDATE=1 brew reinstall --formula remoteble/formula-check/remoteble
           HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall remoteble
       # The self-hosted runner shares one /opt/homebrew across jobs, so a failure part-way
       # through the smoke test would otherwise leave the tap (and possibly an installed
