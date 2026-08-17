@@ -22,7 +22,7 @@ esac
 case "$format" in
   deb)
     image='debian:13@sha256:34cd9e9fd437c0a095ec39cb2e73422c9f30821b0d0848ed74fd0d43bae4d958'
-    docker run --rm -v "$(cd "$(dirname "$package")" && pwd):/packages:ro" "$image" sh -ceu '
+    docker run --rm -v "$(cd "$(dirname "$package")" && pwd):/packages:ro" "$image" sh -ceux '
       package=/packages/$1
       version=$2
       arch=$3
@@ -57,7 +57,7 @@ case "$format" in
     ;;
   rpm)
     image='fedora:43@sha256:762d73ba1c455232b0272c5d445a34f36c4b9f421cbc05ce8102552325b6a222'
-    docker run --rm -v "$(cd "$(dirname "$package")" && pwd):/packages:ro" "$image" sh -ceu '
+    docker run --rm -v "$(cd "$(dirname "$package")" && pwd):/packages:ro" "$image" sh -ceux '
       package=/packages/$1
       version=$2
       arch=$3
