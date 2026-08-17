@@ -104,7 +104,12 @@ jobs:
 
   native-macos:
     needs: metadata
-    runs-on: macos-15
+    # TEMPORARY -- REVERT TO `runs-on: macos-15` WHEN THIS REPO GOES PUBLIC.
+    # Self-hosted only to avoid the 10x macOS billing while the repo is still private. Public repos
+    # get free Actions minutes, and a self-hosted runner on a public repo is a security hole (fork
+    # PRs would execute arbitrary code on the Mac). Revert this block and the timeout below together.
+    runs-on: [self-hosted, macOS, apple]
+    timeout-minutes: 120  # relaxed for the local runner; restore to 30 on revert
     permissions:
       contents: read
       id-token: write
@@ -332,7 +337,12 @@ jobs:
   homebrew:
     needs: [metadata, publish]
     if: needs.metadata.outputs.stable == 'true'
-    runs-on: macos-15
+    # TEMPORARY -- REVERT TO `runs-on: macos-15` WHEN THIS REPO GOES PUBLIC.
+    # Self-hosted only to avoid the 10x macOS billing while the repo is still private. Public repos
+    # get free Actions minutes, and a self-hosted runner on a public repo is a security hole (fork
+    # PRs would execute arbitrary code on the Mac). Revert this block and the timeout below together.
+    runs-on: [self-hosted, macOS, apple]
+    timeout-minutes: 120  # relaxed for the local runner; restore to 20 on revert
     environment: release
     concurrency:
       group: homebrew-tap
