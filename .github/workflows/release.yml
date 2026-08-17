@@ -404,7 +404,11 @@ jobs:
           gh repo clone "$TAP_REPOSITORY" tap
           current=
           if [ -f tap/Formula/remoteble.rb ]; then
-            current=$(sed -n 's/^  version "\(.*\)"$/\1/p' tap/Formula/remoteble.rb | head -n 1)
+            # Read the version back out of the URL: the formula carries no `version` stanza,
+            # because `brew audit --strict` rejects one that restates what the URL already
+            # encodes. An unreadable version must not silently skip the downgrade guard below.
+            current=$(sed -n 's|^  url ".*/remoteble-macos-arm64-\(.*\)\.zip"$|\1|p' tap/Formula/remoteble.rb | head -n 1)
+            test -n "$current" || { echo "Cannot read the tapped remoteble version" >&2; exit 1; }
           fi
           if [ -n "$current" ] && [ "$current" != "$VERSION" ]; then
             newest=$(printf '%s\n%s\n' "$current" "$VERSION" | sort -V | tail -n 1)

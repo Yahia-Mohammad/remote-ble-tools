@@ -6,8 +6,9 @@
 class Remoteble < Formula
   desc "Command-line client and Agent Skill for RemoteBLE"
   homepage "https://github.com/Yahia-Mohammad/remote-ble-tools"
+  # No `version` stanza: every archive URL ends in remoteble-<platform>-<version>.zip, so
+  # Homebrew scans the version from it and `brew audit --strict` rejects restating it.
   url "@ARCHIVE_URL@"
-  version "@VERSION@"
   sha256 "@ARCHIVE_SHA256@"
   license "Apache-2.0"
 
