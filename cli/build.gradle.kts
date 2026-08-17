@@ -382,11 +382,22 @@ private fun registerLinuxPackageTasks(spec: LinuxPackageSpec) {
         inputs.property("package.architecture", architecture)
         val output = distributions.map { it.file(filename) }
         outputs.file(output)
+        // nFPM expands environment variables in only a fixed set of fields -- name, version, arch,
+        // the dependency lists -- and `contents[].src` is not one of them, so `${'$'}{STAGE_DIR}` reached
+        // the globber verbatim and matched nothing. PACKAGE_ARCH/PACKAGE_VERSION below are in the
+        // expanded set and still arrive through the environment; only the staging path is rendered.
+        val renderedConfig = layout.buildDirectory.file("tmp/nfpm/${spec.target}-${'$'}format.yaml")
         doFirst {
             check(nfpmConfig.isFile) { "Missing nFPM configuration: ${nfpmConfig.absolutePath}" }
+            val stageDir = stage.get().asFile
+            val staged = stageDir.resolve("dist/bin/remoteble")
+            check(staged.isFile) { "Staged executable is missing: ${'$'}{staged.absolutePath}" }
+            val rendered = renderedConfig.get().asFile
+            rendered.parentFile.mkdirs()
+            rendered.writeText(nfpmConfig.readText().replace("${'$'}{STAGE_DIR}", stageDir.absolutePath))
         }
         executable(nfpmExecutable.get())
-        args("package", "--config", nfpmConfig.absolutePath, "--packager", format, "--target", output.get().asFile.absolutePath)
+        args("package", "--config", renderedConfig.get().asFile.absolutePath, "--packager", format, "--target", output.get().asFile.absolutePath)
         environment("PACKAGE_ARCH", architecture)
         environment("PACKAGE_VERSION", project.version.toString())
         environment("STAGE_DIR", stage.get().asFile.absolutePath)
