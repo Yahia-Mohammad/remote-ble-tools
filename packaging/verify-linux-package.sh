@@ -26,8 +26,12 @@ case "$format" in
       package=/packages/$1
       version=$2
       arch=$3
+      # nFPM folds `release: "1"` from packaging/nfpm.yaml into the single Debian version field,
+      # so the package declares `0.1.0-1` where the caller passes `0.1.0`. The rpm branch below
+      # reads VERSION and RELEASE separately and needs no such adjustment.
+      deb_version=$version-1
       dpkg-deb -I "$package" | grep -Eq "^ Package: remoteble$"
-      dpkg-deb -I "$package" | grep -Eq "^ Version: $version$"
+      dpkg-deb -I "$package" | grep -Eq "^ Version: $deb_version$"
       dpkg-deb -I "$package" | grep -Eq "^ Architecture: $arch$"
       dpkg-deb -I "$package" | grep -Eq "^ Depends: .*libc6"
       dpkg-deb -c "$package" | grep -q "./usr/bin/remoteble$"
@@ -38,7 +42,7 @@ case "$format" in
       apt-get update
       apt-get install -y "$package"
       test "$(dpkg --print-architecture)" = "$arch"
-      test "$(dpkg-query -W -f="\${Version}" remoteble)" = "$version"
+      test "$(dpkg-query -W -f="\${Version}" remoteble)" = "$deb_version"
       remoteble --version
       rble --version
       ! ldd /usr/bin/remoteble | grep -q "not found"
