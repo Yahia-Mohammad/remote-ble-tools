@@ -1,3 +1,8 @@
+# typed: strict
+# frozen_string_literal: true
+
+# Homebrew formula for the RemoteBLE command-line client. Rendered from this template by
+# packaging/render-homebrew-formula.sh, which substitutes the @-delimited placeholders.
 class Remoteble < Formula
   desc "Command-line client and Agent Skill for RemoteBLE"
   homepage "https://github.com/Yahia-Mohammad/remote-ble-tools"
@@ -6,8 +11,8 @@ class Remoteble < Formula
   sha256 "@ARCHIVE_SHA256@"
   license "Apache-2.0"
 
-  depends_on :macos
   depends_on arch: :arm64
+  depends_on :macos
 
   def install
     bin.install "dist/bin/remoteble", "dist/bin/rble"
