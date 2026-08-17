@@ -34,6 +34,9 @@ case "$format" in
       dpkg-deb -I "$package" | grep -Eq "^ Version: $deb_version$"
       dpkg-deb -I "$package" | grep -Eq "^ Architecture: $arch$"
       dpkg-deb -I "$package" | grep -Eq "^ Depends: .*libc6"
+      # libcrypt.so.1 is a DT_NEEDED of the binary and is not part of glibc; without it
+      # declared the package installs and then fails at exec.
+      dpkg-deb -I "$package" | grep -Eq "^ Depends: .*libcrypt1"
       dpkg-deb -c "$package" | grep -q "./usr/bin/remoteble$"
       dpkg-deb -c "$package" | grep -q "./usr/bin/rble$"
       dpkg-deb -c "$package" | grep -q "./usr/share/man/man1/remoteble.1$"
@@ -68,6 +71,7 @@ case "$format" in
       rpm_arch=$4
       rpm -qp --qf "%{NAME} %{VERSION} %{RELEASE} %{ARCH}\n" "$package" | grep -Fx "remoteble $version 1 $rpm_arch"
       rpm -qpR "$package" | grep -Eq "(^|[[:space:]])glibc"
+      rpm -qpR "$package" | grep -Eq "(^|[[:space:]])libxcrypt-compat"
       rpm -qpl "$package" | grep -Fx /usr/bin/remoteble
       rpm -qpl "$package" | grep -Fx /usr/bin/rble
       rpm -qpl "$package" | grep -Fx /usr/share/man/man1/remoteble.1

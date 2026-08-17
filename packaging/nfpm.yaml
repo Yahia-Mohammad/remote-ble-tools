@@ -37,10 +37,20 @@ contents:
     dst: /usr/share/doc/remoteble/NOTICE
   - src: ${STAGE_DIR}/sbom.json
     dst: /usr/share/doc/remoteble/sbom.json
+# The Kotlin/Native binary's DT_NEEDED list is libc, libm, libpthread, librt, libdl, libutil,
+# libresolv (all glibc), plus libcrypt.so.1 and libgcc_s.so.1 -- which glibc does not provide.
+# libcrypt left glibc in 2.28; Fedora ships libcrypt.so.2 from libxcrypt and offers the .so.1 ABI
+# only through libxcrypt-compat, so an rpm declaring glibc alone installs cleanly and then fails
+# at exec with "libcrypt.so.1: cannot open shared object file". nFPM does not run rpm's automatic
+# dependency generation, so every one of these has to be declared here.
 overrides:
   deb:
     depends:
       - libc6
+      - libcrypt1
+      - libgcc-s1
   rpm:
     depends:
       - glibc
+      - libxcrypt-compat
+      - libgcc
