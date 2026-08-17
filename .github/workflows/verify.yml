@@ -88,11 +88,27 @@ jobs:
           sha256=$(shasum -a 256 "$archive" | awk '{print $1}')
           packaging/render-homebrew-formula.sh 0.1.0 "file://$archive" "$sha256" "$RUNNER_TEMP/remoteble.rb"
           HOMEBREW_NO_AUTO_UPDATE=1 brew style "$RUNNER_TEMP/remoteble.rb"
-          HOMEBREW_NO_AUTO_UPDATE=1 brew audit --strict --formula "$RUNNER_TEMP/remoteble.rb"
+          # `brew audit` stopped accepting a path in Homebrew 6.x (dev-cmd/audit.rb odisables
+          # `brew audit [path ...]`), so the formula has to resolve by name. Stage it in a
+          # throwaway tap; the cleanup step below removes it even when this step fails, which
+          # matters on the self-hosted runner where /opt/homebrew persists between jobs.
+          brew untap remoteble/formula-check 2>/dev/null || true
+          brew tap-new --no-git remoteble/formula-check
+          cp "$RUNNER_TEMP/remoteble.rb" "$(brew --repository remoteble/formula-check)/Formula/remoteble.rb"
+          HOMEBREW_NO_AUTO_UPDATE=1 brew audit --strict remoteble/formula-check/remoteble
           HOMEBREW_NO_AUTO_UPDATE=1 brew install --formula "$RUNNER_TEMP/remoteble.rb"
           HOMEBREW_NO_AUTO_UPDATE=1 brew test remoteble
           HOMEBREW_NO_AUTO_UPDATE=1 brew reinstall --formula "$RUNNER_TEMP/remoteble.rb"
           HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall --force remoteble
+      # The self-hosted runner shares one /opt/homebrew across jobs, so a failure part-way
+      # through the smoke test would otherwise leave the tap (and possibly an installed
+      # remoteble) behind and poison the next run.
+      - name: Clean up Homebrew state
+        if: always()
+        shell: bash
+        run: |
+          HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall --force remoteble 2>/dev/null || true
+          brew untap remoteble/formula-check 2>/dev/null || true
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: remoteble-formula
