@@ -11,6 +11,7 @@ permissions:
 jobs:
   secret-scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -21,5 +22,6 @@ jobs:
 
   dependency-review:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
