@@ -35,7 +35,7 @@ val configuredAgent: File? = ((project.findProperty("remoteble.agent.jar") as St
     ?.takeIf { it.isNotBlank() }
     ?.let { rootProject.file(it) }
 
-val agentVersion = "0.11.0"
+val agentVersion = "0.12.0"
 val agentDirectory = layout.buildDirectory.dir("live-agent")
 val fetchedAgent = agentDirectory.map { it.file("remoteble-agent-$agentVersion-all.jar") }
 
