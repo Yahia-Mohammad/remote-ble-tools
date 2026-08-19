@@ -418,10 +418,17 @@ jobs:
           mkdir -p tap/Formula
           cp Formula/remoteble.rb tap/Formula/remoteble.rb
           cd tap
-          if git diff --quiet -- Formula/remoteble.rb; then exit 0; fi
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          # Stage before comparing. On the first publish the formula is a new, untracked file, and
+          # `git diff` ignores untracked paths -- the step would report nothing to do and leave the
+          # tap empty while the release reported success, which is the one failure nobody notices.
           git add Formula/remoteble.rb
+          if git diff --cached --quiet -- Formula/remoteble.rb; then exit 0; fi
           git commit -m "remoteble $VERSION"
-          git pull --rebase origin main
+          # A tap that has never been published has no main to rebase onto, so reconcile only once
+          # the branch exists. The push itself creates it.
+          if git ls-remote --exit-code --heads origin main >/dev/null 2>&1; then
+            git pull --rebase origin main
+          fi
           git push origin HEAD:main
