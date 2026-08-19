@@ -1,4 +1,4 @@
-# remoteble-tools
+# RemoteBLE Tools
 
 A command-line client and companion Agent Skill for
 [RemoteBLE](https://github.com/Yahia-Mohammad/remote-ble).
