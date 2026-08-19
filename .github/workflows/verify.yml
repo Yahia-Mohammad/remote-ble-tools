@@ -117,7 +117,9 @@ jobs:
           HOMEBREW_NO_AUTO_UPDATE=1 brew style remoteble/formula-check
           HOMEBREW_NO_AUTO_UPDATE=1 brew audit --strict remoteble/formula-check/remoteble
           HOMEBREW_NO_AUTO_UPDATE=1 brew install --formula remoteble/formula-check/remoteble
-          HOMEBREW_NO_AUTO_UPDATE=1 brew test remoteble
+          # Fully qualified: with the real tap installed, a bare `remoteble` is ambiguous
+          # and brew refuses to guess which one to test.
+          HOMEBREW_NO_AUTO_UPDATE=1 brew test remoteble/formula-check/remoteble
           HOMEBREW_NO_AUTO_UPDATE=1 brew reinstall --formula remoteble/formula-check/remoteble
           HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall --force remoteble
       # The self-hosted runner shares one /opt/homebrew across jobs, so a failure part-way
