@@ -2,7 +2,7 @@ name: verify
 
 on:
   pull_request:
-  # `codex/**` is deliberately absent: those branches always have an open PR, so the
+  # Feature branches are deliberately absent: they always have an open PR, so the
   # pull_request event already covers them. Listing them here fired both events for one
   # commit, and the concurrency group keys on the PR number or the ref -- which differ
   # between the two events -- so neither run cancelled the other.
