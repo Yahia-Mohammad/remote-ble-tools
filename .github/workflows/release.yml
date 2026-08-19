@@ -442,8 +442,7 @@ jobs:
           sha256=$(shasum -a 256 release-assets/$archive | awk '{print $1}')
           archive_url="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/$archive"
           packaging/render-homebrew-formula.sh "$VERSION" "$archive_url" "$sha256" Formula/remoteble.rb
-          HOMEBREW_NO_AUTO_UPDATE=1 brew style Formula/remoteble.rb
-          # Homebrew 6.x takes a path for `brew style` only: `brew audit` odisables path
+          # Homebrew 6.x takes a path for `brew style` only: `brew audit` disables path
           # arguments outright, and `brew install` rejects any formula that is not in a tap.
           # Both therefore resolve the formula by name. Stage it in a
           # throwaway tap; the cleanup step below removes it even when this step fails, which
@@ -451,9 +450,17 @@ jobs:
           brew untap remoteble/formula-check 2>/dev/null || true
           brew tap-new --no-git remoteble/formula-check
           cp Formula/remoteble.rb "$(brew --repository remoteble/formula-check)/Formula/remoteble.rb"
+          # Style the staged copy, not the loose file. `brew style <path>` analyses that file
+          # alongside every tapped formula, so once a machine has the real tap installed the
+          # rendered formula is reported as a duplicate of itself -- which is the state this
+          # runner has had since it published the tap. Scoped to the throwaway tap, only this
+          # copy is analysed.
+          HOMEBREW_NO_AUTO_UPDATE=1 brew style remoteble/formula-check
           HOMEBREW_NO_AUTO_UPDATE=1 brew audit --strict remoteble/formula-check/remoteble
           HOMEBREW_NO_AUTO_UPDATE=1 brew install --formula remoteble/formula-check/remoteble
-          HOMEBREW_NO_AUTO_UPDATE=1 brew test remoteble
+          # Fully qualified: with the real tap installed, a bare `remoteble` is ambiguous
+          # and brew refuses to guess which one to test.
+          HOMEBREW_NO_AUTO_UPDATE=1 brew test remoteble/formula-check/remoteble
           HOMEBREW_NO_AUTO_UPDATE=1 brew reinstall --formula remoteble/formula-check/remoteble
           HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall remoteble
       # The self-hosted runner shares one /opt/homebrew across jobs, so a failure part-way
