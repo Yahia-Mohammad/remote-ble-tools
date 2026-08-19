@@ -59,6 +59,12 @@ tasks.test {
     // The default check must not need an agent or a host-matching Native executable. Those suites
     // run only from their dedicated tasks, where their required process fixture is configured.
     useJUnitPlatform { excludeTags("live-agent", "native-lock-handoff") }
+    // The reproducibility assertion reads a generated document, so it has to be generated first and
+    // declared as an input. Without the input the suite stays up-to-date when the document changes,
+    // which is the one moment the assertion exists to catch.
+    val bom = rootProject.project("cli").layout.buildDirectory.file("reports/cyclonedx-direct/sbom.json")
+    dependsOn(":cli:cyclonedxDirectBom")
+    inputs.file(bom).withPropertyName("cycloneDxBom").withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 /** Native lock behavior is meaningful only on the host that can execute the matching binary. */
