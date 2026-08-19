@@ -2,8 +2,8 @@
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
 # To regenerate this file, run: ./gradlew :integration-tests:dependencies --write-locks
-com.charleskorn.kaml:kaml-jvm:0.69.0=testRuntimeClasspath
-com.charleskorn.kaml:kaml:0.69.0=testRuntimeClasspath
+com.charleskorn.kaml:kaml-jvm:0.104.0=testRuntimeClasspath
+com.charleskorn.kaml:kaml:0.104.0=testRuntimeClasspath
 com.ethlo.time:itu:1.14.0=testCompileClasspath,testRuntimeClasspath
 com.fasterxml.jackson.core:jackson-annotations:2.21=testCompileClasspath,testRuntimeClasspath
 com.github.ajalt.clikt:clikt-core-jvm:5.1.0=testRuntimeClasspath
@@ -23,8 +23,8 @@ com.github.ajalt.mordant:mordant-jvm-jna:3.0.2=testRuntimeClasspath
 com.github.ajalt.mordant:mordant-jvm:3.0.2=testRuntimeClasspath
 com.github.ajalt.mordant:mordant:3.0.2=testRuntimeClasspath
 com.networknt:json-schema-validator:3.0.6=testCompileClasspath,testRuntimeClasspath
-com.squareup.okio:okio-jvm:3.9.1=testRuntimeClasspath
-com.squareup.okio:okio:3.9.1=testRuntimeClasspath
+com.squareup.okio:okio-jvm:3.16.4=testRuntimeClasspath
+com.squareup.okio:okio:3.16.4=testRuntimeClasspath
 io.ktor:ktor-client-cio-jvm:3.5.2=testCompileClasspath,testRuntimeClasspath
 io.ktor:ktor-client-cio:3.5.2=testCompileClasspath,testRuntimeClasspath
 io.ktor:ktor-client-core-jvm:3.5.2=testCompileClasspath,testRuntimeClasspath
@@ -53,8 +53,8 @@ io.ktor:ktor-websocket-serialization-jvm:3.5.2=testCompileClasspath,testRuntimeC
 io.ktor:ktor-websocket-serialization:3.5.2=testCompileClasspath,testRuntimeClasspath
 io.ktor:ktor-websockets-jvm:3.5.2=testCompileClasspath,testRuntimeClasspath
 io.ktor:ktor-websockets:3.5.2=testCompileClasspath,testRuntimeClasspath
-it.krzeminski:snakeyaml-engine-kmp-jvm:3.0.3=testRuntimeClasspath
-it.krzeminski:snakeyaml-engine-kmp:3.0.3=testRuntimeClasspath
+it.krzeminski:snakeyaml-engine-kmp-jvm:4.0.1=testRuntimeClasspath
+it.krzeminski:snakeyaml-engine-kmp:4.0.1=testRuntimeClasspath
 net.java.dev.jna:jna:5.14.0=testRuntimeClasspath
 net.thauvin.erik.urlencoder:urlencoder-lib-jvm:1.6.0=testRuntimeClasspath
 net.thauvin.erik.urlencoder:urlencoder-lib:1.6.0=testRuntimeClasspath
