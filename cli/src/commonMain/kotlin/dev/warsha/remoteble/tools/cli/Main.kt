@@ -3,6 +3,7 @@ package dev.warsha.remoteble.tools.cli
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.CliktError
 import com.github.ajalt.clikt.core.Context
+import com.github.ajalt.clikt.core.PrintHelpMessage
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.completion.completionOption
 import com.github.ajalt.clikt.core.UsageError
@@ -75,6 +76,15 @@ fun main(args: Array<String>) {
     try {
         cli.parse(args)
     } catch (error: CliktError) {
+        // `printHelpOnEmptyArgs` reports a missing command as a PrintHelpMessage that sets `error`,
+        // but the type fixes `printError = false`, so Clikt would print the usage to stdout and
+        // exit 0 -- telling a script the run succeeded when nothing ran. `error` is exactly the
+        // distinction between help that was asked for and help that stands in for a refusal.
+        if (error is PrintHelpMessage && error.error) {
+            cli.getFormattedHelp(error)?.let { cli.echo(it, err = true) }
+            cli.echo("Error: no command given", err = true)
+            exitProcess(ExitCode.USAGE.value)
+        }
         cli.echoFormattedHelp(error)
         exitProcess(if (error is UsageError) ExitCode.USAGE.value else error.statusCode)
     }
@@ -135,6 +145,21 @@ private data class EffectiveOptions(
     val logLevel: String?,
 )
 
+/**
+ * Refuses a command group invoked without one of its subcommands.
+ *
+ * Printing the usage text and stopping there is not enough: nothing says what went wrong, so the
+ * reader gets a wall of help and has to infer it, and the text lands on stdout where a caller
+ * piping the command receives help as data. The root also exited 2 while a group exited 0, which
+ * told a script the run had succeeded when nothing had run at all.
+ */
+private fun CliktCommand.requireSubcommand() {
+    if (currentContext.invokedSubcommand != null) return
+    echo(getFormattedHelp(), err = true)
+    echo("Error: no command given", err = true)
+    throw ProgramResult(ExitCode.USAGE.value)
+}
+
 internal class RootCommand : CliktCommand(
     name = "remoteble",
 ) {
@@ -150,10 +175,7 @@ internal class RootCommand : CliktCommand(
 
     override fun run() {
         active = global.effectiveWith(null)
-        if (currentContext.invokedSubcommand == null) {
-            echo(getFormattedHelp())
-            throw ProgramResult(ExitCode.USAGE.value)
-        }
+        requireSubcommand()
     }
     override fun help(context: Context): String = "A scriptable client for RemoteBLE agents."
     override val invokeWithoutSubcommand: Boolean = true
@@ -383,7 +405,7 @@ internal abstract class RootChild(
 }
 
 private class SkillsCommand : CliktCommand(name = "skills") {
-    override fun run() = Unit
+    override fun run() = requireSubcommand()
     override fun help(context: Context): String = "Install and verify the bundled RemoteBLE Agent Skill locally."
     override val printHelpOnEmptyArgs: Boolean = true
     override val invokeWithoutSubcommand: Boolean = true
@@ -460,7 +482,7 @@ private class SkillDoctorCommand(root: RootCommand) : SkillCommand(root, "doctor
 }
 
 private class AgentCommand : CliktCommand(name = "agent") {
-    override fun run() = Unit
+    override fun run() = requireSubcommand()
     override fun help(context: Context): String = "Inspect agent capabilities and future-gated operations."
     override val printHelpOnEmptyArgs: Boolean = true
     override val invokeWithoutSubcommand: Boolean = true
@@ -650,7 +672,7 @@ private class ReadCommand(root: RootCommand) : CharacteristicCommand(root, "read
 }
 
 private class DescriptorCommand : CliktCommand(name = "descriptor") {
-    override fun run() = Unit
+    override fun run() = requireSubcommand()
     override fun help(context: Context): String = "Read GATT descriptors."
     override val printHelpOnEmptyArgs: Boolean = true
     override val invokeWithoutSubcommand: Boolean = true
@@ -818,7 +840,7 @@ private class ReportCommand(root: RootCommand) : RootChild(root, "report", "Show
 }
 
 private class ConfigCommand : CliktCommand(name = "config") {
-    override fun run() = Unit
+    override fun run() = requireSubcommand()
     override fun help(context: Context): String = "Inspect and validate configuration."
     override val printHelpOnEmptyArgs: Boolean = true
     override val invokeWithoutSubcommand: Boolean = true
