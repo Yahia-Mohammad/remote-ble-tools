@@ -43,6 +43,8 @@ kotlin {
         // archive and ld.lld sees the symbol twice when linking the Linux test binary, which fails
         // `linkDebugTestLinuxX64`. macOS links cleanly, so only Linux gives up its cache here.
         // (`kotlin.native.cacheKind.*` was the old switch; it was removed in Kotlin 2.3.20.)
+        // Still present in clikt 5.1.0 — do not retry this on a Mac. Cross-linking linuxX64 from
+        // macOS succeeds with the cache on, so only a Linux host reproduces it.
         if (konanTarget.family == Family.LINUX) {
             @OptIn(KotlinNativeCacheApi::class)
             binaries.configureEach {
