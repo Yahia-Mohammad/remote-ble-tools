@@ -133,7 +133,15 @@ jobs:
           test -f "$RUNNER_TEMP/macos-release/dist/man/remoteble.1"
           test -f "$RUNNER_TEMP/macos-release/dist/skills/remoteble/SKILL.md"
           "$RUNNER_TEMP/macos-release/dist/bin/remoteble" --version
+      # Two attestations, as the JVM archive gets: one call carrying an SBOM produces only the
+      # CycloneDX predicate, which leaves `gh attestation verify` with no provenance to find on
+      # the executables that are the primary distribution.
       - name: Attest macOS archive
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: cli/build/distributions/remoteble-macos-arm64-${{ needs.metadata.outputs.version }}.zip
+          create-storage-record: false
+      - name: Attest macOS SBOM
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: cli/build/distributions/remoteble-macos-arm64-${{ needs.metadata.outputs.version }}.zip
@@ -180,7 +188,15 @@ jobs:
           ( cd "$RUNNER_TEMP/linux-x64-release" && shasum -a 256 -c SHA256SUMS )
           ! ldd "$RUNNER_TEMP/linux-x64-release/dist/bin/remoteble" | grep -q 'not found'
           "$RUNNER_TEMP/linux-x64-release/dist/bin/remoteble" --version
+      # Two attestations, as the JVM archive gets: one call carrying an SBOM produces only the
+      # CycloneDX predicate, which leaves `gh attestation verify` with no provenance to find on
+      # the executables that are the primary distribution.
       - name: Attest Linux x64 archive
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: cli/build/distributions/remoteble-linux-x64-${{ needs.metadata.outputs.version }}.zip
+          create-storage-record: false
+      - name: Attest Linux x64 SBOM
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: cli/build/distributions/remoteble-linux-x64-${{ needs.metadata.outputs.version }}.zip
@@ -243,7 +259,15 @@ jobs:
           unzip -q "$archive" -d "$RUNNER_TEMP/linux-arm64-release"
           ( cd "$RUNNER_TEMP/linux-arm64-release" && shasum -a 256 -c SHA256SUMS )
           file "$RUNNER_TEMP/linux-arm64-release/dist/bin/remoteble" | grep -Eqi 'arm aarch64|aarch64'
+      # Two attestations, as the JVM archive gets: one call carrying an SBOM produces only the
+      # CycloneDX predicate, which leaves `gh attestation verify` with no provenance to find on
+      # the executables that are the primary distribution.
       - name: Attest Linux ARM64 archive
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: cli/build/distributions/remoteble-linux-arm64-${{ needs.metadata.outputs.version }}.zip
+          create-storage-record: false
+      - name: Attest Linux ARM64 SBOM
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: cli/build/distributions/remoteble-linux-arm64-${{ needs.metadata.outputs.version }}.zip
@@ -338,6 +362,11 @@ jobs:
         run: |
           set -euo pipefail
           gh attestation verify "release-assets/remoteble-${VERSION}.zip" --repo "$GITHUB_REPOSITORY"
+          # The native executables are what most people install, so verify them here too: this
+          # step passing while they carried no provenance is how that gap survived a release.
+          for platform in macos-arm64 linux-x64 linux-arm64; do
+            gh attestation verify "release-assets/remoteble-${platform}-${VERSION}.zip" --repo "$GITHUB_REPOSITORY"
+          done
           if [ "$STABLE" = true ]; then
             gh attestation verify "release-assets/remoteble_${VERSION}_amd64.deb" --repo "$GITHUB_REPOSITORY"
             gh attestation verify "release-assets/remoteble-${VERSION}-1.x86_64.rpm" --repo "$GITHUB_REPOSITORY"
