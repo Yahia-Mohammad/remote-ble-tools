@@ -80,7 +80,30 @@ sudo dnf install ./remoteble-X.Y.Z-1.x86_64.rpm
 
 Each GitHub Release includes ZIP distributions, the standalone Agent Skill, Linux packages, per-file
 checksums in `checksums.txt`, and SBOMs within the distributions. Verify the checksum file before
-installing a downloaded artifact.
+installing a downloaded artifact. Every archive and package also carries a build provenance
+attestation, so a download can be checked against the workflow that produced it:
+
+```sh
+gh attestation verify remoteble-macos-arm64-X.Y.Z.zip --repo Yahia-Mohammad/remote-ble-tools
+```
+
+### Install an agent
+
+The CLI drives a [RemoteBLE agent](https://github.com/Yahia-Mohammad/remote-ble); it does nothing
+on its own. The agent usually runs beside the device rather than beside the CLI, but on macOS the
+same tap installs one locally:
+
+```sh
+brew trust --cask Yahia-Mohammad/tap/remoteble-agent
+brew install --cask remoteble-agent
+open -a RemoteBleAgentRs --args --port 8080
+```
+
+It installs as a cask, not a formula, because macOS grants Bluetooth to an application bundle and
+honors the grant only for an app LaunchServices started — `open` is what satisfies that, and the
+first launch prompts once for Bluetooth access. Homebrew also refuses casks from a third-party tap
+until it is trusted, which is what the `brew trust` line is for; formulae need no such step. The
+build is ad-hoc signed, so the prompt returns after an upgrade.
 
 ## Release automation
 
@@ -88,11 +111,11 @@ Pushing a stable `vX.Y.Z` tag builds and publishes the GitHub Release, the Linux
 build provenance/SBOM attestations, and the Homebrew formula. A valid prerelease tag such as
 `vX.Y.Z-rc.1` publishes only the existing ZIP assets as a GitHub prerelease.
 
-Before the first stable public release, create the public `Yahia-Mohammad/homebrew-tap` repository,
-set the repository variable `HOMEBREW_TAP_REPOSITORY=Yahia-Mohammad/homebrew-tap`, and add a
-fine-grained `HOMEBREW_TAP_TOKEN` with Contents write access to the `release` environment. The
-workflow validates packages and the formula on pull requests and `main`, but does not publish from
-those events.
+The formula is published to [`Yahia-Mohammad/homebrew-tap`](https://github.com/Yahia-Mohammad/homebrew-tap),
+using the `HOMEBREW_TAP_REPOSITORY` repository variable and a `HOMEBREW_TAP_TOKEN` secret held in the
+`release` environment. The workflow validates packages and the formula on pull requests and `main`,
+but does not publish from those events. Deferred packaging work is recorded in
+[`docs/distribution-roadmap.md`](docs/distribution-roadmap.md).
 
 Structured output uses the versioned [result envelope schema](schemas/result-envelope-v1.json) and the
 [persistent session schemas](schemas/session-input-v1.json). Use `remoteble session --jsonl` for coding
