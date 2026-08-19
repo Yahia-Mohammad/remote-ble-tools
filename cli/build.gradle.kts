@@ -38,21 +38,6 @@ kotlin {
     linuxArm64()
 
     targets.withType<KotlinNativeTarget>().configureEach {
-        // clikt 5.x ships `Context.selfAndAncestors` in both the `clikt` and `clikt-mordant`
-        // artifacts. With the Kotlin/Native compiler cache on, each is cached into its own static
-        // archive and ld.lld sees the symbol twice when linking the Linux test binary, which fails
-        // `linkDebugTestLinuxX64`. macOS links cleanly, so only Linux gives up its cache here.
-        // (`kotlin.native.cacheKind.*` was the old switch; it was removed in Kotlin 2.3.20.)
-        if (konanTarget.family == Family.LINUX) {
-            @OptIn(KotlinNativeCacheApi::class)
-            binaries.configureEach {
-                disableNativeCache(
-                    DisableCacheInKotlinVersion.`2_4_10`,
-                    "clikt 5.x defines Context.selfAndAncestors in both clikt and clikt-mordant; " +
-                        "cached, ld.lld sees it twice and linkDebugTestLinux*64 fails",
-                )
-            }
-        }
         binaries {
             executable("remoteble") {
                 entryPoint = "dev.warsha.remoteble.tools.cli.main"
