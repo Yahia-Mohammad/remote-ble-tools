@@ -12,6 +12,11 @@ jobs:
   secret-scan:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Reading the pull request's commit list is a pull-requests scope, not a contents one, so the
+    # token 403s with only the workflow-wide default. Read-only, and comments stay off.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -19,8 +24,7 @@ jobs:
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           # The action refuses to scan a pull request without a token: it reads the PR's commit
-          # range through the API. The automatic token is enough — `contents: read` above is all
-          # it needs, and comments are off, so it never writes.
+          # range through the API. The automatic token covers it, given the scopes above.
           GITHUB_TOKEN: ${{ github.token }}
           GITLEAKS_ENABLE_COMMENTS: 'false'
 
