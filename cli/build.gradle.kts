@@ -9,8 +9,13 @@ import org.cyclonedx.model.Component
 import org.gradle.jvm.tasks.Jar
 import org.gradle.api.tasks.Sync
 import org.gradle.api.tasks.bundling.Zip
+import java.nio.ByteBuffer
 import java.security.MessageDigest
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.Base64
+import java.util.UUID
 import java.util.zip.ZipFile
 import groovy.json.JsonSlurper
 
@@ -204,6 +209,52 @@ val releaseStage = layout.buildDirectory.dir("release-stage")
  * would drag test and native-only dependencies into a document read as authoritative for the
  * artifact we ship, so the scan is limited to the one configuration that ends up in the JAR.
  */
+/**
+ * Rewrites the two fields a CycloneDX document varies between builds of identical source.
+ *
+ * The release job's re-run path re-downloads a published release and diffs it against a rebuild, so
+ * an artifact that differs byte-for-byte turns a safe re-run into a failure — which is what forced
+ * a published release to be deleted rather than re-run. Everything else in the archives is already
+ * reproducible; the SBOM was the only thing that was not.
+ *
+ * The plugin exposes neither field: `includeBomSerialNumber` is a boolean, and there is no
+ * timestamp property at all. So both are rewritten in place. `SOURCE_DATE_EPOCH` is the
+ * reproducible-builds convention and is read by nfpm too, so one variable covers archives and
+ * packages alike; without it the timestamp falls back to a constant, which keeps a developer's
+ * local build reproducible as well.
+ *
+ * The edit is textual rather than a parse-and-reserialize, because reformatting the document would
+ * itself be a difference between builds.
+ */
+val sourceDateEpoch: Long = (System.getenv("SOURCE_DATE_EPOCH")?.toLongOrNull() ?: 315532800L)
+
+fun reproducibleInstant(): String = Instant.ofEpochSecond(sourceDateEpoch)
+    .atZone(ZoneOffset.UTC)
+    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'"))
+
+/** A version 5 UUID over the document's own identity, so the same inputs always name it the same. */
+fun deterministicSerialNumber(name: String): String {
+    val namespace = UUID.fromString("6ba7b810-9dad-11d1-80b4-00c04fd430c8") // RFC 4122 DNS
+    val buffer = ByteBuffer.allocate(16)
+        .putLong(namespace.mostSignificantBits)
+        .putLong(namespace.leastSignificantBits)
+    val digest = MessageDigest.getInstance("SHA-1")
+        .digest(buffer.array() + name.toByteArray(Charsets.UTF_8))
+    digest[6] = ((digest[6].toInt() and 0x0f) or 0x50).toByte() // version 5
+    digest[8] = ((digest[8].toInt() and 0x3f) or 0x80).toByte() // RFC 4122 variant
+    val hex = digest.take(16).joinToString("") { "%02x".format(it) }
+    return "urn:uuid:${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-" +
+        "${hex.substring(16, 20)}-${hex.substring(20, 32)}"
+}
+
+fun makeBomReproducible(bom: File, identity: String) {
+    if (!bom.isFile) return
+    val rewritten = bom.readText()
+        .replace(Regex("\"serialNumber\" : \"[^\"]*\""), "\"serialNumber\" : \"${deterministicSerialNumber(identity)}\"")
+        .replace(Regex("\"timestamp\" : \"[^\"]*\""), "\"timestamp\" : \"${reproducibleInstant()}\"")
+    bom.writeText(rewritten)
+}
+
 val bomJsonOutput = layout.buildDirectory.file("reports/cyclonedx-direct/sbom.json")
 tasks.withType<CyclonedxDirectTask>().configureEach {
     projectType.set(Component.Type.APPLICATION)
@@ -217,6 +268,9 @@ tasks.named<CyclonedxDirectTask>("cyclonedxDirectBom") {
     includeConfigs.set(listOf("jvmRuntimeClasspath"))
     jsonOutput.set(bomJsonOutput)
     xmlOutput.set(layout.buildDirectory.file("reports/cyclonedx-direct/sbom.xml"))
+    val output = bomJsonOutput
+    val identity = "remoteble:jvm:${project.version}"
+    doLast { makeBomReproducible(output.get().asFile, identity) }
 }
 
 val releaseArtifacts = tasks.register<Sync>("releaseArtifacts") {
@@ -320,6 +374,9 @@ listOf(
         includeConfigs.set(listOf("${spec.target}CompileKlibraries"))
         jsonOutput.set(nativeBomJson)
         xmlOutput.set(layout.buildDirectory.file("reports/cyclonedx-direct/${spec.target}/sbom.xml"))
+        val output = nativeBomJson
+        val identity = "remoteble:${spec.target}:${project.version}"
+        doLast { makeBomReproducible(output.get().asFile, identity) }
     }
 
     val nativeStage = layout.buildDirectory.dir("native-release-stage/${spec.target}")
