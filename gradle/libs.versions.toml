@@ -5,7 +5,7 @@ serialization = "1.11.0"
 clikt = "5.0.1"
 kaml = "0.69.0"
 junit = "5.11.4"
-ktor = "3.5.1"
+ktor = "3.5.2"
 cyclonedx = "3.3.0"
 json-schema-validator = "3.0.6"
 
