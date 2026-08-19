@@ -43,9 +43,13 @@ core product. The CLI is independently useful, testable, and scriptable.
 Build a self-contained native executable on Apple Silicon:
 
 ```sh
-./gradlew :cli:linkRemotebleReleaseExecutableMacosArm64
-cli/build/bin/macosArm64/remotebleReleaseExecutable/remoteble.kexe --help
+./gradlew :cli:macosArm64ReleaseArtifacts
+cli/build/native-release-stage/macosArm64/dist/bin/remoteble --help
 ```
+
+That stages the same layout a release archive ships, so the binary is named `remoteble` rather
+than carrying Kotlin/Native's `.kexe` linker suffix. `:cli:linkRemotebleReleaseExecutableMacosArm64`
+links the executable alone, under `cli/build/bin/`, if that is all you need.
 
 The same Kotlin Multiplatform source also links Linux x64 and ARM64 executables with
 `:cli:linkRemotebleReleaseExecutableLinuxX64` and
