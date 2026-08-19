@@ -18,10 +18,19 @@ jobs:
           fetch-depth: 0
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
+          # The action refuses to scan a pull request without a token: it reads the PR's commit
+          # range through the API. The automatic token is enough — `contents: read` above is all
+          # it needs, and comments are off, so it never writes.
+          GITHUB_TOKEN: ${{ github.token }}
           GITLEAKS_ENABLE_COMMENTS: 'false'
 
   dependency-review:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Dependency review reads the dependency graph, which is free on a public repository but needs
+    # GitHub Advanced Security on a private one -- so on a private repository the job cannot pass,
+    # only fail. Skip it instead of reporting a red check for a feature that is switched off, and
+    # let it start running by itself once this repository is public.
+    if: github.event.repository.visibility == 'public'
     steps:
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
