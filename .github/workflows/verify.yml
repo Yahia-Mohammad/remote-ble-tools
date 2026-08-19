@@ -279,7 +279,10 @@ jobs:
             unzip -l "$archive" | grep -q 'NOTICE'
             unzip -l "$archive" | grep -q 'SHA256SUMS'
             unzip -l "$archive" | grep -q 'sbom.json'
-            target="$RUNNER_TEMP/native-archive/$(basename "$(dirname "$archive")")"
+            name=$(basename "$(dirname "$archive")")
+            target="$RUNNER_TEMP/native-archive/$name"
+            # `unzip -d` creates the leaf directory but not a missing parent above it.
+            mkdir -p "$target"
             unzip -q "$archive" -d "$target"
             ( cd "$target" && shasum -a 256 -c SHA256SUMS )
             test -x "$target/dist/bin/remoteble"
@@ -287,9 +290,15 @@ jobs:
             test -f "$target/dist/completions/remoteble.bash"
             test -f "$target/dist/man/remoteble.1"
             test -f "$target/dist/skills/remoteble/SKILL.md"
-            skill_home="$target/skill-home"
-            HOME="$skill_home" "$target/dist/bin/remoteble" skills install --target codex --scope user
-            HOME="$skill_home" "$target/dist/bin/remoteble" skills doctor --target codex --scope user
+            # Everything above inspects the archive and runs on any host. Launching the binary does
+            # not: this runner is Linux x64, so the macOS and ARM64 executables cannot run here.
+            # Those are exercised where they can be: macOS arm64 through `brew test` in
+            # native-macos, and Linux arm64 through native-linux-arm64-package-test on an ARM host.
+            if [ "$name" = "remoteble-linux-x64" ]; then
+              skill_home="$target/skill-home"
+              HOME="$skill_home" "$target/dist/bin/remoteble" skills install --target codex --scope user
+              HOME="$skill_home" "$target/dist/bin/remoteble" skills doctor --target codex --scope user
+            fi
           done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
