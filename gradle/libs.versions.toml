@@ -2,7 +2,7 @@
 kotlin = "2.4.10"
 coroutines = "1.11.0"
 serialization = "1.11.0"
-clikt = "5.0.1"
+clikt = "5.1.0"
 kaml = "0.69.0"
 junit = "5.11.4"
 ktor = "3.5.1"
