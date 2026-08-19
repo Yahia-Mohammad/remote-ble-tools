@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+# To regenerate this file, run: ./gradlew :integration-tests:dependencies --write-locks
 com.charleskorn.kaml:kaml-jvm:0.69.0=testRuntimeClasspath
 com.charleskorn.kaml:kaml:0.69.0=testRuntimeClasspath
 com.ethlo.time:itu:1.14.0=testCompileClasspath,testRuntimeClasspath
