@@ -80,7 +80,7 @@ jobs:
           test -f "$RUNNER_TEMP/jvm-release/dist/skills/remoteble/SKILL.md"
           ( cd cli/build/distributions && shasum -a 256 -c remoteble-skill-${{ needs.metadata.outputs.version }}.zip.sha256 )
       - name: Attest JVM release artifacts
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
             cli/build/distributions/remoteble-${{ needs.metadata.outputs.version }}.zip
@@ -88,7 +88,7 @@ jobs:
             cli/build/distributions/remoteble-skill-${{ needs.metadata.outputs.version }}.zip.sha256
           create-storage-record: false
       - name: Attest JVM SBOM
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
             cli/build/distributions/remoteble-${{ needs.metadata.outputs.version }}.zip
@@ -134,7 +134,7 @@ jobs:
           test -f "$RUNNER_TEMP/macos-release/dist/skills/remoteble/SKILL.md"
           "$RUNNER_TEMP/macos-release/dist/bin/remoteble" --version
       - name: Attest macOS archive
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: cli/build/distributions/remoteble-macos-arm64-${{ needs.metadata.outputs.version }}.zip
           sbom-path: cli/build/native-release-stage/macosArm64/sbom.json
@@ -160,7 +160,7 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.0.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v6.0.0
         if: needs.metadata.outputs.stable == 'true'
         with:
           go-version: '1.26.4'
@@ -181,14 +181,14 @@ jobs:
           ! ldd "$RUNNER_TEMP/linux-x64-release/dist/bin/remoteble" | grep -q 'not found'
           "$RUNNER_TEMP/linux-x64-release/dist/bin/remoteble" --version
       - name: Attest Linux x64 archive
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: cli/build/distributions/remoteble-linux-x64-${{ needs.metadata.outputs.version }}.zip
           sbom-path: cli/build/native-release-stage/linuxX64/sbom.json
           create-storage-record: false
       - name: Attest Linux x64 packages
         if: needs.metadata.outputs.stable == 'true'
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
             cli/build/distributions/remoteble_${{ needs.metadata.outputs.version }}_amd64.deb
@@ -224,7 +224,7 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
-      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.0.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v6.0.0
         if: needs.metadata.outputs.stable == 'true'
         with:
           go-version: '1.26.4'
@@ -244,14 +244,14 @@ jobs:
           ( cd "$RUNNER_TEMP/linux-arm64-release" && shasum -a 256 -c SHA256SUMS )
           file "$RUNNER_TEMP/linux-arm64-release/dist/bin/remoteble" | grep -Eqi 'arm aarch64|aarch64'
       - name: Attest Linux ARM64 archive
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: cli/build/distributions/remoteble-linux-arm64-${{ needs.metadata.outputs.version }}.zip
           sbom-path: cli/build/native-release-stage/linuxArm64/sbom.json
           create-storage-record: false
       - name: Attest Linux ARM64 packages
         if: needs.metadata.outputs.stable == 'true'
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
             cli/build/distributions/remoteble_${{ needs.metadata.outputs.version }}_arm64.deb
@@ -303,7 +303,7 @@ jobs:
             shasum -a 256 -c checksums.txt
           )
       - name: Attest release checksum manifest
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: release-assets/checksums.txt
           create-storage-record: false
