@@ -2,8 +2,12 @@ name: verify
 
 on:
   pull_request:
+  # Feature branches are deliberately absent: they always have an open PR, so the
+  # pull_request event already covers them. Listing them here fired both events for one
+  # commit, and the concurrency group keys on the PR number or the ref -- which differ
+  # between the two events -- so neither run cancelled the other.
   push:
-    branches: [main, 'codex/**']
+    branches: [main]
   schedule:
     - cron: '23 4 * * 1'
 
@@ -18,6 +22,7 @@ concurrency:
 jobs:
   dependency-locks:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
@@ -30,6 +35,7 @@ jobs:
 
   jvm:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
@@ -46,6 +52,7 @@ jobs:
   # floating it would turn an upstream release into a failure on an unrelated change.
   acceptance:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
@@ -64,10 +71,17 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: acceptance-results
-          path: integration-tests/build/reports/tests/liveAgentTest
+          path: |
+            integration-tests/build/reports/tests/liveAgentTest
+            integration-tests/build/live-agent-run/agent.log
 
   native-macos:
-    runs-on: macos-15
+    # TEMPORARY -- REVERT TO `runs-on: macos-15` WHEN THIS REPO GOES PUBLIC.
+    # Self-hosted only to avoid the 10x macOS billing while the repo is still private. Public repos
+    # get free Actions minutes, and a self-hosted runner on a public repo is a security hole (fork
+    # PRs would execute arbitrary code on the Mac). Revert this block and the timeout below together.
+    runs-on: [self-hosted, macOS, apple]
+    timeout-minutes: 120  # relaxed for the local runner; restore to 30 on revert
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
@@ -75,11 +89,46 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
-      - run: ./gradlew :core:macosArm64Test :cli:macosArm64Test :integration-tests:nativeLockHandoffTest :cli:macosArm64NativeArchive
+      - run: ./gradlew :core:macosArm64Test :cli:macosArm64Test :integration-tests:nativeLockHandoffTest :cli:macosArm64NativeArchive -Premoteble.version=0.1.0
       - run: |
           cli/build/bin/macosArm64/remotebleReleaseExecutable/remoteble.kexe --help
           unzip -q cli/build/distributions/remoteble-macos-arm64-*.zip -d "$RUNNER_TEMP/macos-archive"
           "$RUNNER_TEMP/macos-archive/dist/bin/remoteble" --version
+      - name: Render and smoke-test the Homebrew formula
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive=$(pwd)/cli/build/distributions/remoteble-macos-arm64-0.1.0.zip
+          sha256=$(shasum -a 256 "$archive" | awk '{print $1}')
+          packaging/render-homebrew-formula.sh 0.1.0 "file://$archive" "$sha256" "$RUNNER_TEMP/remoteble.rb"
+          HOMEBREW_NO_AUTO_UPDATE=1 brew style "$RUNNER_TEMP/remoteble.rb"
+          # Homebrew 6.x takes a path for `brew style` only: `brew audit` odisables path
+          # arguments outright, and `brew install` rejects any formula that is not in a tap.
+          # Both therefore resolve the formula by name. Stage it in a
+          # throwaway tap; the cleanup step below removes it even when this step fails, which
+          # matters on the self-hosted runner where /opt/homebrew persists between jobs.
+          brew untap remoteble/formula-check 2>/dev/null || true
+          brew tap-new --no-git remoteble/formula-check
+          cp "$RUNNER_TEMP/remoteble.rb" "$(brew --repository remoteble/formula-check)/Formula/remoteble.rb"
+          HOMEBREW_NO_AUTO_UPDATE=1 brew audit --strict remoteble/formula-check/remoteble
+          HOMEBREW_NO_AUTO_UPDATE=1 brew install --formula remoteble/formula-check/remoteble
+          HOMEBREW_NO_AUTO_UPDATE=1 brew test remoteble
+          HOMEBREW_NO_AUTO_UPDATE=1 brew reinstall --formula remoteble/formula-check/remoteble
+          HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall --force remoteble
+      # The self-hosted runner shares one /opt/homebrew across jobs, so a failure part-way
+      # through the smoke test would otherwise leave the tap (and possibly an installed
+      # remoteble) behind and poison the next run.
+      - name: Clean up Homebrew state
+        if: always()
+        shell: bash
+        run: |
+          HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall --force remoteble 2>/dev/null || true
+          brew untap remoteble/formula-check 2>/dev/null || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: remoteble-formula
+          path: ${{ runner.temp }}/remoteble.rb
+          if-no-files-found: error
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: remoteble-macos-arm64
@@ -87,6 +136,7 @@ jobs:
 
   native-linux:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
@@ -94,21 +144,38 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.0.0
+        with:
+          go-version: '1.26.4'
+      - name: Install nFPM
+        run: |
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       # The Native state lock and record reader are the two places where this CLI depends on
       # libc behaviour that differs between platforms, so their tests have to run on Linux and
       # not only on the macOS runner.
-      - run: ./gradlew :core:linuxX64Test :cli:linuxX64Test :integration-tests:nativeLockHandoffTest :cli:linuxX64NativeArchive
+      - run: ./gradlew :core:linuxX64Test :cli:linuxX64Test :integration-tests:nativeLockHandoffTest :cli:linuxX64NativeArchive :cli:linuxX64Packages -Premoteble.version=0.1.0
       - run: |
           cli/build/bin/linuxX64/remotebleReleaseExecutable/remoteble.kexe --help
           unzip -q cli/build/distributions/remoteble-linux-x64-*.zip -d "$RUNNER_TEMP/linux-x64-archive"
           "$RUNNER_TEMP/linux-x64-archive/dist/bin/remoteble" --version
+      - name: Inspect, install, and remove x64 packages
+        run: |
+          packaging/verify-linux-package.sh deb cli/build/distributions/remoteble_0.1.0_amd64.deb 0.1.0 amd64
+          packaging/verify-linux-package.sh rpm cli/build/distributions/remoteble-0.1.0-1.x86_64.rpm 0.1.0 amd64
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: remoteble-linux-x64
-          path: cli/build/distributions/remoteble-linux-x64-*.zip
+          path: |
+            cli/build/distributions/remoteble-linux-x64-*.zip
+            cli/build/distributions/remoteble_*.deb
+            cli/build/distributions/remoteble-*.x86_64.rpm
 
   native-linux-arm64:
-    runs-on: ubuntu-24.04-arm
+    # Kotlin/Native supports Linux ARM64 as a target from Linux x64, but does not support an
+    # ARM64 Linux host. The following package-test job runs the resulting binaries on ARM64.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
@@ -116,19 +183,44 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
-      - run: ./gradlew :core:linuxArm64Test :cli:linuxArm64Test :integration-tests:nativeLockHandoffTest :cli:linuxArm64NativeArchive
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.0.0
+        with:
+          go-version: '1.26.4'
+      - name: Install nFPM
+        run: |
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - run: ./gradlew :integration-tests:nativeLockHandoffTest :cli:linuxArm64NativeArchive :cli:linuxArm64Packages -Premoteble.version=0.1.0
       - run: |
-          cli/build/bin/linuxArm64/remotebleReleaseExecutable/remoteble.kexe --help
           unzip -q cli/build/distributions/remoteble-linux-arm64-*.zip -d "$RUNNER_TEMP/linux-arm64-archive"
-          "$RUNNER_TEMP/linux-arm64-archive/dist/bin/remoteble" --version
+          file "$RUNNER_TEMP/linux-arm64-archive/dist/bin/remoteble" | grep -Eqi 'arm aarch64|aarch64'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: remoteble-linux-arm64
-          path: cli/build/distributions/remoteble-linux-arm64-*.zip
+          path: |
+            cli/build/distributions/remoteble-linux-arm64-*.zip
+            cli/build/distributions/remoteble_*.deb
+            cli/build/distributions/remoteble-*.aarch64.rpm
+
+  native-linux-arm64-package-test:
+    needs: native-linux-arm64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: remoteble-linux-arm64
+          path: packages
+      - name: Inspect, install, and remove ARM64 packages
+        run: |
+          packaging/verify-linux-package.sh deb packages/remoteble_0.1.0_arm64.deb 0.1.0 arm64
+          packaging/verify-linux-package.sh rpm packages/remoteble-0.1.0-1.aarch64.rpm 0.1.0 arm64
 
   package:
     runs-on: ubuntu-latest
-    needs: [jvm, acceptance, native-macos, native-linux, native-linux-arm64]
+    timeout-minutes: 25
+    needs: [jvm, acceptance, native-macos, native-linux, native-linux-arm64, native-linux-arm64-package-test]
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
@@ -137,20 +229,29 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
       - run: ./gradlew :cli:releaseArchive :cli:skillChecksum
-      - run: test -s cli/build/distributions/remoteble-*.zip
-      - run: unzip -l cli/build/distributions/remoteble-*.zip | grep -E 'LICENSE|NOTICE|SHA256SUMS|sbom.json|rble'
-      - run: unzip -l cli/build/distributions/remoteble-*.zip | grep -q 'dist/skills/remoteble/SKILL.md'
+      # `remoteble-*.zip` also matches the skill archive, so every step below received two paths:
+      # `test` saw a stray operand and `unzip` read the second path as a member filter inside the
+      # first. Resolve the one JVM archive here and let the rest of the job name it.
+      - name: Resolve the JVM release archive
+        run: |
+          shopt -s nullglob
+          archives=(cli/build/distributions/remoteble-[0-9]*.zip)
+          test "${#archives[@]}" -eq 1
+          test -s "${archives[0]}"
+          echo "JVM_ARCHIVE=${archives[0]}" >> "$GITHUB_ENV"
+      - run: unzip -l "$JVM_ARCHIVE" | grep -E 'LICENSE|NOTICE|SHA256SUMS|sbom.json|rble'
+      - run: unzip -l "$JVM_ARCHIVE" | grep -q 'dist/skills/remoteble/SKILL.md'
       - run: ( cd cli/build/distributions && test -s remoteble-skill-*.zip && shasum -a 256 -c remoteble-skill-*.zip.sha256 )
       # The SBOM used to ship as a placeholder that declared no dependencies. A scanner treats that
       # as authoritative, so assert the document lists real libraries rather than arriving as an
       # empty application-only component.
       - run: |
-          unzip -p cli/build/distributions/remoteble-*.zip sbom.json \
+          unzip -p "$JVM_ARCHIVE" sbom.json \
             | python3 -c 'import json,sys; b=json.load(sys.stdin); assert b["bomFormat"]=="CycloneDX"; assert sum(1 for c in b["components"] if c["type"]=="library")>=10'
       # Extract rather than list: an entry can be present and still arrive non-executable, which is
       # a broken install for anyone who unzips the archive and runs the launcher.
       - run: |
-          unzip -q cli/build/distributions/remoteble-*.zip -d "$RUNNER_TEMP/jvm-archive"
+          unzip -q "$JVM_ARCHIVE" -d "$RUNNER_TEMP/jvm-archive"
           test -x "$RUNNER_TEMP/jvm-archive/dist/bin/remoteble"
           test -x "$RUNNER_TEMP/jvm-archive/dist/bin/rble"
           "$RUNNER_TEMP/jvm-archive/dist/bin/remoteble" --version
@@ -178,7 +279,10 @@ jobs:
             unzip -l "$archive" | grep -q 'NOTICE'
             unzip -l "$archive" | grep -q 'SHA256SUMS'
             unzip -l "$archive" | grep -q 'sbom.json'
-            target="$RUNNER_TEMP/native-archive/$(basename "$(dirname "$archive")")"
+            name=$(basename "$(dirname "$archive")")
+            target="$RUNNER_TEMP/native-archive/$name"
+            # `unzip -d` creates the leaf directory but not a missing parent above it.
+            mkdir -p "$target"
             unzip -q "$archive" -d "$target"
             ( cd "$target" && shasum -a 256 -c SHA256SUMS )
             test -x "$target/dist/bin/remoteble"
@@ -186,9 +290,15 @@ jobs:
             test -f "$target/dist/completions/remoteble.bash"
             test -f "$target/dist/man/remoteble.1"
             test -f "$target/dist/skills/remoteble/SKILL.md"
-            skill_home="$target/skill-home"
-            HOME="$skill_home" "$target/dist/bin/remoteble" skills install --target codex --scope user
-            HOME="$skill_home" "$target/dist/bin/remoteble" skills doctor --target codex --scope user
+            # Everything above inspects the archive and runs on any host. Launching the binary does
+            # not: this runner is Linux x64, so the macOS and ARM64 executables cannot run here.
+            # Those are exercised where they can be: macOS arm64 through `brew test` in
+            # native-macos, and Linux arm64 through native-linux-arm64-package-test on an ARM host.
+            if [ "$name" = "remoteble-linux-x64" ]; then
+              skill_home="$target/skill-home"
+              HOME="$skill_home" "$target/dist/bin/remoteble" skills install --target codex --scope user
+              HOME="$skill_home" "$target/dist/bin/remoteble" skills doctor --target codex --scope user
+            fi
           done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

@@ -1,0 +1,56 @@
+name: remoteble
+arch: ${PACKAGE_ARCH}
+platform: linux
+version: ${PACKAGE_VERSION}
+release: "1"
+section: utils
+priority: optional
+maintainer: Yahia Mohammad <yahia.mohammad.alhussiny@gmail.com>
+vendor: Warsha
+homepage: https://github.com/Yahia-Mohammad/remote-ble-tools
+license: Apache-2.0
+description: >-
+  Command-line client and Agent Skill for RemoteBLE.
+contents:
+  - src: ${STAGE_DIR}/dist/bin/remoteble
+    dst: /usr/bin/remoteble
+    file_info:
+      mode: 0755
+  - src: ${STAGE_DIR}/dist/bin/rble
+    dst: /usr/bin/rble
+    file_info:
+      mode: 0755
+  - src: ${STAGE_DIR}/dist/man/remoteble.1
+    dst: /usr/share/man/man1/remoteble.1
+  - src: ${STAGE_DIR}/dist/completions/remoteble.bash
+    dst: /usr/share/bash-completion/completions/remoteble
+  - src: ${STAGE_DIR}/dist/completions/remoteble.zsh
+    dst: /usr/share/zsh/site-functions/_remoteble
+  - src: ${STAGE_DIR}/dist/completions/remoteble.fish
+    dst: /usr/share/fish/vendor_completions.d/remoteble.fish
+  - src: ${STAGE_DIR}/dist/skills/remoteble
+    dst: /usr/share/remoteble/skills/remoteble
+    type: tree
+  - src: ${STAGE_DIR}/LICENSE
+    dst: /usr/share/doc/remoteble/LICENSE
+  - src: ${STAGE_DIR}/NOTICE
+    dst: /usr/share/doc/remoteble/NOTICE
+  - src: ${STAGE_DIR}/sbom.json
+    dst: /usr/share/doc/remoteble/sbom.json
+# The Kotlin/Native binary's DT_NEEDED list is libc, libm, libpthread, librt, libdl, libutil,
+# libresolv (all glibc), plus libcrypt.so.1 and libgcc_s.so.1 -- which glibc does not provide.
+# libcrypt left glibc in 2.28; Fedora ships libcrypt.so.2 from libxcrypt and offers the .so.1 ABI
+# only through libxcrypt-compat, so an rpm declaring glibc alone installs cleanly and then fails
+# at exec with "libcrypt.so.1: cannot open shared object file". nFPM does not run rpm's automatic
+# dependency generation, so every one of these has to be declared here.
+overrides:
+  deb:
+    depends:
+      - libc6
+      - libcrypt1
+      - libgcc-s1
+  rpm:
+    depends:
+      - glibc
+      - libxcrypt-compat
+      - libgcc

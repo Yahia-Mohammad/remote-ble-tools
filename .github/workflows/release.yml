@@ -4,18 +4,57 @@ on:
   push:
     tags: ['v*']
 
-# Only the final job receives write authority. It publishes only after this tagged commit has run
-# the same JVM, live-agent, formatting, and packaging verification required for a merge.
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-publish
   cancel-in-progress: false
 
 jobs:
-  jvm:
+  metadata:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      stable: ${{ steps.version.outputs.stable }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          version="${tag#v}"
+          numeric='(0|[1-9][0-9]*)'
+          core="${numeric}\\.${numeric}\\.${numeric}"
+          prerelease_identifier="(${numeric}|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)"
+          prerelease_pattern="${prerelease_identifier}(\\.${prerelease_identifier})*"
+          build_identifier="[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*"
+          if [[ "$tag" =~ ^v${core}$ ]]; then
+            stable=true
+            prerelease=false
+          elif [[ "$tag" =~ ^v${core}-${prerelease_pattern}(\+${build_identifier})?$ ]]; then
+            stable=false
+            prerelease=true
+          else
+            echo "Release tags must be vX.Y.Z or vX.Y.Z-prerelease: $tag" >&2
+            exit 2
+          fi
+          {
+            echo "version=$version"
+            echo "stable=$stable"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+
+  jvm:
+    needs: metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
@@ -28,9 +67,10 @@ jobs:
           ./gradlew dependencies --no-daemon
           git diff --exit-code -- '**/gradle.lockfile' settings-gradle.lockfile
       - name: Verify and package the tagged commit
-        run: ./gradlew :core:jvmTest :cli:validateSkill :cli:jvmTest :integration-tests:test :integration-tests:fetchAgent :integration-tests:liveAgentTest :cli:releaseArchive :cli:skillChecksum formatCheck -Premoteble.agent.required=true -Premoteble.version="${GITHUB_REF_NAME#v}"
-      - run: |
-          unzip -q cli/build/distributions/remoteble-*.zip -d "$RUNNER_TEMP/jvm-release"
+        run: ./gradlew :core:jvmTest :cli:validateSkill :cli:jvmTest :integration-tests:test :integration-tests:fetchAgent :integration-tests:liveAgentTest :cli:releaseArchive :cli:skillChecksum formatCheck -Premoteble.agent.required=true -Premoteble.version="${{ needs.metadata.outputs.version }}"
+      - name: Verify the JVM archive
+        run: |
+          unzip -q cli/build/distributions/remoteble-${{ needs.metadata.outputs.version }}.zip -d "$RUNNER_TEMP/jvm-release"
           ( cd "$RUNNER_TEMP/jvm-release" && shasum -a 256 -c SHA256SUMS )
           test -s "$RUNNER_TEMP/jvm-release/sbom.json"
           test -x "$RUNNER_TEMP/jvm-release/dist/bin/remoteble"
@@ -38,17 +78,44 @@ jobs:
           test -f "$RUNNER_TEMP/jvm-release/dist/completions/remoteble.bash"
           test -f "$RUNNER_TEMP/jvm-release/dist/man/remoteble.1"
           test -f "$RUNNER_TEMP/jvm-release/dist/skills/remoteble/SKILL.md"
-          ( cd cli/build/distributions && shasum -a 256 -c remoteble-skill-*.zip.sha256 )
+          ( cd cli/build/distributions && shasum -a 256 -c remoteble-skill-${{ needs.metadata.outputs.version }}.zip.sha256 )
+      - name: Attest JVM release artifacts
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-path: |
+            cli/build/distributions/remoteble-${{ needs.metadata.outputs.version }}.zip
+            cli/build/distributions/remoteble-skill-${{ needs.metadata.outputs.version }}.zip
+            cli/build/distributions/remoteble-skill-${{ needs.metadata.outputs.version }}.zip.sha256
+          create-storage-record: false
+      - name: Attest JVM SBOM
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-path: |
+            cli/build/distributions/remoteble-${{ needs.metadata.outputs.version }}.zip
+            cli/build/distributions/remoteble-skill-${{ needs.metadata.outputs.version }}.zip
+          sbom-path: cli/build/reports/cyclonedx-direct/sbom.json
+          create-storage-record: false
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: remoteble-jvm
           path: |
-            cli/build/distributions/remoteble-*.zip
-            cli/build/distributions/remoteble-skill-*.zip.sha256
+            cli/build/distributions/remoteble-${{ needs.metadata.outputs.version }}.zip
+            cli/build/distributions/remoteble-skill-${{ needs.metadata.outputs.version }}.zip
+            cli/build/distributions/remoteble-skill-${{ needs.metadata.outputs.version }}.zip.sha256
           if-no-files-found: error
 
   native-macos:
-    runs-on: macos-15
+    needs: metadata
+    # TEMPORARY -- REVERT TO `runs-on: macos-15` WHEN THIS REPO GOES PUBLIC.
+    # Self-hosted only to avoid the 10x macOS billing while the repo is still private. Public repos
+    # get free Actions minutes, and a self-hosted runner on a public repo is a security hole (fork
+    # PRs would execute arbitrary code on the Mac). Revert this block and the timeout below together.
+    runs-on: [self-hosted, macOS, apple]
+    timeout-minutes: 120  # relaxed for the local runner; restore to 30 on revert
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
@@ -56,23 +123,36 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
-      - run: ./gradlew :core:macosArm64Test :cli:macosArm64Test :integration-tests:nativeLockHandoffTest :cli:macosArm64NativeArchive -Premoteble.version="${GITHUB_REF_NAME#v}"
-      - run: |
-          cli/build/bin/macosArm64/remotebleReleaseExecutable/remoteble.kexe --help
-          unzip -q cli/build/distributions/remoteble-macos-arm64-*.zip -d "$RUNNER_TEMP/macos-release"
+      - run: ./gradlew :core:macosArm64Test :cli:macosArm64Test :integration-tests:nativeLockHandoffTest :cli:macosArm64NativeArchive -Premoteble.version="${{ needs.metadata.outputs.version }}"
+      - name: Verify the macOS archive
+        run: |
+          archive=cli/build/distributions/remoteble-macos-arm64-${{ needs.metadata.outputs.version }}.zip
+          unzip -q "$archive" -d "$RUNNER_TEMP/macos-release"
           ( cd "$RUNNER_TEMP/macos-release" && shasum -a 256 -c SHA256SUMS )
           test -f "$RUNNER_TEMP/macos-release/dist/completions/remoteble.bash"
           test -f "$RUNNER_TEMP/macos-release/dist/man/remoteble.1"
           test -f "$RUNNER_TEMP/macos-release/dist/skills/remoteble/SKILL.md"
           "$RUNNER_TEMP/macos-release/dist/bin/remoteble" --version
+      - name: Attest macOS archive
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-path: cli/build/distributions/remoteble-macos-arm64-${{ needs.metadata.outputs.version }}.zip
+          sbom-path: cli/build/native-release-stage/macosArm64/sbom.json
+          create-storage-record: false
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: remoteble-macos-arm64
-          path: cli/build/distributions/remoteble-macos-arm64-*.zip
+          path: cli/build/distributions/remoteble-macos-arm64-${{ needs.metadata.outputs.version }}.zip
           if-no-files-found: error
 
   native-linux-x64:
+    needs: metadata
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
@@ -80,23 +160,63 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
-      - run: ./gradlew :core:linuxX64Test :cli:linuxX64Test :integration-tests:nativeLockHandoffTest :cli:linuxX64NativeArchive -Premoteble.version="${GITHUB_REF_NAME#v}"
-      - run: |
-          cli/build/bin/linuxX64/remotebleReleaseExecutable/remoteble.kexe --help
-          unzip -q cli/build/distributions/remoteble-linux-x64-*.zip -d "$RUNNER_TEMP/linux-x64-release"
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.0.0
+        if: needs.metadata.outputs.stable == 'true'
+        with:
+          go-version: '1.26.4'
+      - name: Install nFPM
+        if: needs.metadata.outputs.stable == 'true'
+        run: |
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - run: ./gradlew :core:linuxX64Test :cli:linuxX64Test :integration-tests:nativeLockHandoffTest :cli:linuxX64NativeArchive -Premoteble.version="${{ needs.metadata.outputs.version }}"
+      - name: Build Linux x64 packages
+        if: needs.metadata.outputs.stable == 'true'
+        run: ./gradlew :cli:linuxX64Packages -Premoteble.version="${{ needs.metadata.outputs.version }}"
+      - name: Verify the Linux x64 archive
+        run: |
+          archive=cli/build/distributions/remoteble-linux-x64-${{ needs.metadata.outputs.version }}.zip
+          unzip -q "$archive" -d "$RUNNER_TEMP/linux-x64-release"
           ( cd "$RUNNER_TEMP/linux-x64-release" && shasum -a 256 -c SHA256SUMS )
-          test -f "$RUNNER_TEMP/linux-x64-release/dist/completions/remoteble.bash"
-          test -f "$RUNNER_TEMP/linux-x64-release/dist/man/remoteble.1"
-          test -f "$RUNNER_TEMP/linux-x64-release/dist/skills/remoteble/SKILL.md"
+          ! ldd "$RUNNER_TEMP/linux-x64-release/dist/bin/remoteble" | grep -q 'not found'
           "$RUNNER_TEMP/linux-x64-release/dist/bin/remoteble" --version
+      - name: Attest Linux x64 archive
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-path: cli/build/distributions/remoteble-linux-x64-${{ needs.metadata.outputs.version }}.zip
+          sbom-path: cli/build/native-release-stage/linuxX64/sbom.json
+          create-storage-record: false
+      - name: Attest Linux x64 packages
+        if: needs.metadata.outputs.stable == 'true'
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-path: |
+            cli/build/distributions/remoteble_${{ needs.metadata.outputs.version }}_amd64.deb
+            cli/build/distributions/remoteble-${{ needs.metadata.outputs.version }}-1.x86_64.rpm
+          sbom-path: cli/build/native-release-stage/linuxX64/sbom.json
+          create-storage-record: false
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: remoteble-linux-x64
-          path: cli/build/distributions/remoteble-linux-x64-*.zip
+          path: cli/build/distributions/remoteble-linux-x64-${{ needs.metadata.outputs.version }}.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: needs.metadata.outputs.stable == 'true'
+        with:
+          name: remoteble-linux-x64-packages
+          path: |
+            cli/build/distributions/remoteble_${{ needs.metadata.outputs.version }}_amd64.deb
+            cli/build/distributions/remoteble-${{ needs.metadata.outputs.version }}-1.x86_64.rpm
           if-no-files-found: error
 
   native-linux-arm64:
-    runs-on: ubuntu-24.04-arm
+    needs: metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: actions/setup-java@0f481fcb613427c0f801b606911222b5b6f3083a # v5.5.0
@@ -104,34 +224,211 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
-      - run: ./gradlew :core:linuxArm64Test :cli:linuxArm64Test :integration-tests:nativeLockHandoffTest :cli:linuxArm64NativeArchive -Premoteble.version="${GITHUB_REF_NAME#v}"
-      - run: |
-          cli/build/bin/linuxArm64/remotebleReleaseExecutable/remoteble.kexe --help
-          unzip -q cli/build/distributions/remoteble-linux-arm64-*.zip -d "$RUNNER_TEMP/linux-arm64-release"
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.0.0
+        if: needs.metadata.outputs.stable == 'true'
+        with:
+          go-version: '1.26.4'
+      - name: Install nFPM
+        if: needs.metadata.outputs.stable == 'true'
+        run: |
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - run: ./gradlew :integration-tests:nativeLockHandoffTest :cli:linuxArm64NativeArchive -Premoteble.version="${{ needs.metadata.outputs.version }}"
+      - name: Build Linux ARM64 packages
+        if: needs.metadata.outputs.stable == 'true'
+        run: ./gradlew :cli:linuxArm64Packages -Premoteble.version="${{ needs.metadata.outputs.version }}"
+      - name: Verify the Linux ARM64 archive
+        run: |
+          archive=cli/build/distributions/remoteble-linux-arm64-${{ needs.metadata.outputs.version }}.zip
+          unzip -q "$archive" -d "$RUNNER_TEMP/linux-arm64-release"
           ( cd "$RUNNER_TEMP/linux-arm64-release" && shasum -a 256 -c SHA256SUMS )
-          test -f "$RUNNER_TEMP/linux-arm64-release/dist/completions/remoteble.bash"
-          test -f "$RUNNER_TEMP/linux-arm64-release/dist/man/remoteble.1"
-          test -f "$RUNNER_TEMP/linux-arm64-release/dist/skills/remoteble/SKILL.md"
-          "$RUNNER_TEMP/linux-arm64-release/dist/bin/remoteble" --version
+          file "$RUNNER_TEMP/linux-arm64-release/dist/bin/remoteble" | grep -Eqi 'arm aarch64|aarch64'
+      - name: Attest Linux ARM64 archive
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-path: cli/build/distributions/remoteble-linux-arm64-${{ needs.metadata.outputs.version }}.zip
+          sbom-path: cli/build/native-release-stage/linuxArm64/sbom.json
+          create-storage-record: false
+      - name: Attest Linux ARM64 packages
+        if: needs.metadata.outputs.stable == 'true'
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-path: |
+            cli/build/distributions/remoteble_${{ needs.metadata.outputs.version }}_arm64.deb
+            cli/build/distributions/remoteble-${{ needs.metadata.outputs.version }}-1.aarch64.rpm
+          sbom-path: cli/build/native-release-stage/linuxArm64/sbom.json
+          create-storage-record: false
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: remoteble-linux-arm64
-          path: cli/build/distributions/remoteble-linux-arm64-*.zip
+          path: cli/build/distributions/remoteble-linux-arm64-${{ needs.metadata.outputs.version }}.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: needs.metadata.outputs.stable == 'true'
+        with:
+          name: remoteble-linux-arm64-packages
+          path: |
+            cli/build/distributions/remoteble_${{ needs.metadata.outputs.version }}_arm64.deb
+            cli/build/distributions/remoteble-${{ needs.metadata.outputs.version }}-1.aarch64.rpm
           if-no-files-found: error
 
   publish:
-    needs: [jvm, native-macos, native-linux-x64, native-linux-arm64]
+    needs: [metadata, jvm, native-macos, native-linux-x64, native-linux-arm64]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: remoteble-*
-          path: release-artifacts
-      - name: Create the GitHub release
+          path: downloaded-artifacts
+      - name: Collect and checksum release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir release-assets
+          while IFS= read -r -d '' source; do
+            filename=$(basename "$source")
+            test ! -e "release-assets/$filename"
+            cp "$source" "release-assets/$filename"
+          done < <(find downloaded-artifacts -type f \( -name '*.zip' -o -name '*.zip.sha256' -o -name '*.deb' -o -name '*.rpm' \) -print0)
+          (
+            cd release-assets
+            find . -maxdepth 1 -type f \( -name '*.zip' -o -name '*.zip.sha256' -o -name '*.deb' -o -name '*.rpm' \) -print0 \
+              | sort -z \
+              | xargs -0 shasum -a 256 > checksums.txt
+            shasum -a 256 -c checksums.txt
+          )
+      - name: Attest release checksum manifest
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-path: release-assets/checksums.txt
+          create-storage-record: false
+      - name: Create or verify the GitHub release
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ needs.metadata.outputs.prerelease }}
         run: |
-          gh release create "$GITHUB_REF_NAME" $(find release-artifacts -type f \( -name '*.zip' -o -name '*.zip.sha256' \) -print) \
-            --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            verify_dir=$(mktemp -d)
+            mkdir "$verify_dir/assets"
+            gh release download "$GITHUB_REF_NAME" --dir "$verify_dir/assets"
+            diff -qr release-assets "$verify_dir/assets"
+            ( cd "$verify_dir/assets" && shasum -a 256 -c ../checksums.txt )
+            exit 0
+          fi
+          args=(--verify-tag --title "$GITHUB_REF_NAME" --generate-notes)
+          if [ "$PRERELEASE" = true ]; then args+=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" release-assets/* "${args[@]}"
+      - name: Verify provenance attestations
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STABLE: ${{ needs.metadata.outputs.stable }}
+          VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh attestation verify "release-assets/remoteble-${VERSION}.zip" --repo "$GITHUB_REPOSITORY"
+          if [ "$STABLE" = true ]; then
+            gh attestation verify "release-assets/remoteble_${VERSION}_amd64.deb" --repo "$GITHUB_REPOSITORY"
+            gh attestation verify "release-assets/remoteble-${VERSION}-1.x86_64.rpm" --repo "$GITHUB_REPOSITORY"
+          fi
+
+  homebrew:
+    needs: [metadata, publish]
+    if: needs.metadata.outputs.stable == 'true'
+    # TEMPORARY -- REVERT TO `runs-on: macos-15` WHEN THIS REPO GOES PUBLIC.
+    # Self-hosted only to avoid the 10x macOS billing while the repo is still private. Public repos
+    # get free Actions minutes, and a self-hosted runner on a public repo is a security hole (fork
+    # PRs would execute arbitrary code on the Mac). Revert this block and the timeout below together.
+    runs-on: [self-hosted, macOS, apple]
+    timeout-minutes: 120  # relaxed for the local runner; restore to 20 on revert
+    environment: release
+    concurrency:
+      group: homebrew-tap
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - name: Render and test the Homebrew formula
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          set -euo pipefail
+          test -n "${{ vars.HOMEBREW_TAP_REPOSITORY }}" || { echo "HOMEBREW_TAP_REPOSITORY is not configured" >&2; exit 1; }
+          mkdir release-assets Formula
+          archive="remoteble-macos-arm64-${VERSION}.zip"
+          gh release download "$GITHUB_REF_NAME" --pattern "$archive" --dir release-assets
+          sha256=$(shasum -a 256 release-assets/$archive | awk '{print $1}')
+          archive_url="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/$archive"
+          packaging/render-homebrew-formula.sh "$VERSION" "$archive_url" "$sha256" Formula/remoteble.rb
+          HOMEBREW_NO_AUTO_UPDATE=1 brew style Formula/remoteble.rb
+          # Homebrew 6.x takes a path for `brew style` only: `brew audit` odisables path
+          # arguments outright, and `brew install` rejects any formula that is not in a tap.
+          # Both therefore resolve the formula by name. Stage it in a
+          # throwaway tap; the cleanup step below removes it even when this step fails, which
+          # matters on the self-hosted runner where /opt/homebrew persists between jobs.
+          brew untap remoteble/formula-check 2>/dev/null || true
+          brew tap-new --no-git remoteble/formula-check
+          cp Formula/remoteble.rb "$(brew --repository remoteble/formula-check)/Formula/remoteble.rb"
+          HOMEBREW_NO_AUTO_UPDATE=1 brew audit --strict remoteble/formula-check/remoteble
+          HOMEBREW_NO_AUTO_UPDATE=1 brew install --formula remoteble/formula-check/remoteble
+          HOMEBREW_NO_AUTO_UPDATE=1 brew test remoteble
+          HOMEBREW_NO_AUTO_UPDATE=1 brew reinstall --formula remoteble/formula-check/remoteble
+          HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall remoteble
+      # The self-hosted runner shares one /opt/homebrew across jobs, so a failure part-way
+      # through the smoke test would otherwise leave the tap (and possibly an installed
+      # remoteble) behind and poison the next run.
+      - name: Clean up Homebrew state
+        if: always()
+        shell: bash
+        run: |
+          HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall --force remoteble 2>/dev/null || true
+          brew untap remoteble/formula-check 2>/dev/null || true
+      - name: Update the Homebrew tap
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAP_REPOSITORY: ${{ vars.HOMEBREW_TAP_REPOSITORY }}
+          VERSION: ${{ needs.metadata.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          gh repo clone "$TAP_REPOSITORY" tap
+          current=
+          if [ -f tap/Formula/remoteble.rb ]; then
+            # Read the version back out of the URL: the formula carries no `version` stanza,
+            # because `brew audit --strict` rejects one that restates what the URL already
+            # encodes. An unreadable version must not silently skip the downgrade guard below.
+            current=$(sed -n 's|^  url ".*/remoteble-macos-arm64-\(.*\)\.zip"$|\1|p' tap/Formula/remoteble.rb | head -n 1)
+            test -n "$current" || { echo "Cannot read the tapped remoteble version" >&2; exit 1; }
+          fi
+          if [ -n "$current" ] && [ "$current" != "$VERSION" ]; then
+            newest=$(printf '%s\n%s\n' "$current" "$VERSION" | sort -V | tail -n 1)
+            test "$newest" = "$VERSION" || { echo "Tap already contains newer remoteble $current" >&2; exit 1; }
+          fi
+          mkdir -p tap/Formula
+          cp Formula/remoteble.rb tap/Formula/remoteble.rb
+          cd tap
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          # Stage before comparing. On the first publish the formula is a new, untracked file, and
+          # `git diff` ignores untracked paths -- the step would report nothing to do and leave the
+          # tap empty while the release reported success, which is the one failure nobody notices.
+          git add Formula/remoteble.rb
+          if git diff --cached --quiet -- Formula/remoteble.rb; then exit 0; fi
+          git commit -m "remoteble $VERSION"
+          # A tap that has never been published has no main to rebase onto, so reconcile only once
+          # the branch exists. The push itself creates it.
+          if git ls-remote --exit-code --heads origin main >/dev/null 2>&1; then
+            git pull --rebase origin main
+          fi
+          git push origin HEAD:main

@@ -1,0 +1,32 @@
+# typed: strict
+# frozen_string_literal: true
+
+# Homebrew formula for the RemoteBLE command-line client. Rendered from this template by
+# packaging/render-homebrew-formula.sh, which substitutes the @-delimited placeholders.
+class Remoteble < Formula
+  desc "Command-line client and Agent Skill for RemoteBLE"
+  homepage "https://github.com/Yahia-Mohammad/remote-ble-tools"
+  # No `version` stanza: every archive URL ends in remoteble-<platform>-<version>.zip, so
+  # Homebrew scans the version from it and `brew audit --strict` rejects restating it.
+  url "@ARCHIVE_URL@"
+  sha256 "@ARCHIVE_SHA256@"
+  license "Apache-2.0"
+
+  depends_on arch: :arm64
+  depends_on :macos
+
+  def install
+    bin.install "dist/bin/remoteble", "dist/bin/rble"
+    man1.install "dist/man/remoteble.1"
+    bash_completion.install "dist/completions/remoteble.bash" => "remoteble"
+    zsh_completion.install "dist/completions/remoteble.zsh" => "_remoteble"
+    fish_completion.install "dist/completions/remoteble.fish"
+    (pkgshare/"skills").install "dist/skills/remoteble"
+    pkgshare.install "LICENSE", "NOTICE", "sbom.json"
+  end
+
+  test do
+    system bin/"remoteble", "--version"
+    system bin/"rble", "--version"
+  end
+end

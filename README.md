@@ -63,6 +63,33 @@ The distribution also includes `rble`, a short launcher alias. Use [examples/con
 as a starting configuration and set the agent token in its configured environment variable.
 Configuration precedence is command-line options, selected profile, configuration file, then built-in defaults.
 
+## Install a release
+
+Stable releases publish native packages for Linux and a macOS Apple Silicon Homebrew formula. Replace
+`X.Y.Z` with the release version when downloading a package directly from the GitHub Release.
+
+```sh
+brew install Yahia-Mohammad/tap/remoteble
+sudo apt install ./remoteble_X.Y.Z_amd64.deb
+sudo dnf install ./remoteble-X.Y.Z-1.x86_64.rpm
+```
+
+Each GitHub Release includes ZIP distributions, the standalone Agent Skill, Linux packages, per-file
+checksums in `checksums.txt`, and SBOMs within the distributions. Verify the checksum file before
+installing a downloaded artifact.
+
+## Release automation
+
+Pushing a stable `vX.Y.Z` tag builds and publishes the GitHub Release, the Linux packages, signed
+build provenance/SBOM attestations, and the Homebrew formula. A valid prerelease tag such as
+`vX.Y.Z-rc.1` publishes only the existing ZIP assets as a GitHub prerelease.
+
+Before the first stable public release, create the public `Yahia-Mohammad/homebrew-tap` repository,
+set the repository variable `HOMEBREW_TAP_REPOSITORY=Yahia-Mohammad/homebrew-tap`, and add a
+fine-grained `HOMEBREW_TAP_TOKEN` with Contents write access to the `release` environment. The
+workflow validates packages and the formula on pull requests and `main`, but does not publish from
+those events.
+
 Structured output uses the versioned [result envelope schema](schemas/result-envelope-v1.json) and the
 [persistent session schemas](schemas/session-input-v1.json). Use `remoteble session --jsonl` for coding
 agents; use `remoteble shell` for a human REPL. The shell supports foreground/background streams and

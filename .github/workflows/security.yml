@@ -11,15 +11,30 @@ permissions:
 jobs:
   secret-scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Reading the pull request's commit list is a pull-requests scope, not a contents one, so the
+    # token 403s with only the workflow-wide default. Read-only, and comments stay off.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
+          # The action refuses to scan a pull request without a token: it reads the PR's commit
+          # range through the API. The automatic token covers it, given the scopes above.
+          GITHUB_TOKEN: ${{ github.token }}
           GITLEAKS_ENABLE_COMMENTS: 'false'
 
   dependency-review:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Dependency review reads the dependency graph, which is free on a public repository but needs
+    # GitHub Advanced Security on a private one -- so on a private repository the job cannot pass,
+    # only fail. Skip it instead of reporting a red check for a feature that is switched off, and
+    # let it start running by itself once this repository is public.
+    if: github.event.repository.visibility == 'public'
     steps:
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0

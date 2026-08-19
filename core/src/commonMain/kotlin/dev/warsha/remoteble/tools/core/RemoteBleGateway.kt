@@ -101,9 +101,11 @@ class RemoteBleGateway internal constructor(
         this == TransportState.GAVE_UP || this == TransportState.INCOMPATIBLE_PROTOCOL
 
     /**
-     * Waits for a usable session, short-circuiting the transport outcomes that mean one is never
-     * coming so `session`/`shell` report an unreachable agent as promptly as a one-shot command
-     * does, instead of sitting out the whole operation deadline first.
+     * Waits for a usable session before the first op is dispatched. Every entry point needs this:
+     * the transport connects asynchronously, so an op issued immediately after [open] is sent while
+     * the state is still CONNECTING and fails TRANSPORT_LOST without the link ever having been
+     * given a chance. Short-circuits the transport outcomes that mean a usable session is never
+     * coming, so an unreachable agent is still reported promptly rather than at the deadline.
      */
     suspend fun awaitReady() {
         val usable = setOf(SessionReadiness.READY, SessionReadiness.DEGRADED)
@@ -125,8 +127,11 @@ class RemoteBleGateway internal constructor(
         }
     }
 
-    override suspend fun status(): AgentStatusDto = (session.request(Op.AgentStatus, timeouts.op).orThrow() as? ResultPayload.Status)
-        ?.status ?: error("agent.status returned an unexpected payload")
+    override suspend fun status(): AgentStatusDto {
+        awaitReady()
+        return (session.request(Op.AgentStatus, timeouts.op).orThrow() as? ResultPayload.Status)
+            ?.status ?: error("agent.status returned an unexpected payload")
+    }
 
     suspend fun slots(): StatusSlotsDto {
         val event = awaitNegotiated("an agent slot snapshot", session.slotState)
@@ -136,6 +141,7 @@ class RemoteBleGateway internal constructor(
     /** A scan deadline is normal completion: retain observations already received. */
     suspend fun scan(filters: List<ScanFilter>, duration: Duration, maximumEvents: Int): List<dev.warsha.remoteble.protocol.AdvertisementDto> {
         val observations = mutableListOf<dev.warsha.remoteble.protocol.AdvertisementDto>()
+        awaitReady()
         withTimeoutOrNull(duration) {
             RemoteScanSource(session).advertisements(filters).take(maximumEvents).collect { observations += it }
         }
@@ -153,6 +159,7 @@ class RemoteBleGateway internal constructor(
             val pump = session.events()
                 .onSubscription {
                     try {
+                        awaitReady()
                         session.request(Op.ScanStart(scanId, filters), timeouts.op).orThrow()
                         onStarted()
                     } catch (error: Throwable) {
@@ -177,8 +184,14 @@ class RemoteBleGateway internal constructor(
         return RemoteGattClient(DeviceHandle(handle), session, timeouts)
     }
 
-    override suspend fun connect(handle: String) = gatt(handle).connect()
-    suspend fun disconnect(handle: String) = gatt(handle).disconnect()
+    override suspend fun connect(handle: String) {
+        awaitReady()
+        gatt(handle).connect()
+    }
+    suspend fun disconnect(handle: String) {
+        awaitReady()
+        gatt(handle).disconnect()
+    }
     suspend fun inspect(handle: String) = connectedGatt(handle).discover()
     suspend fun read(handle: String, service: String, characteristic: String): ByteArray =
         connectedGatt(handle).read(CharRef(service, characteristic))
@@ -189,7 +202,10 @@ class RemoteBleGateway internal constructor(
         value: ByteArray,
         withResponse: Boolean,
         onSubmitted: () -> Unit,
-    ) = gatt(handle).write(CharRef(service, characteristic), value, withResponse, onSubmitted)
+    ) {
+        awaitReady()
+        gatt(handle).write(CharRef(service, characteristic), value, withResponse, onSubmitted)
+    }
     suspend fun readRssi(handle: String): Int = connectedGatt(handle).readRssi()
     suspend fun readDescriptor(handle: String, service: String, characteristic: String, descriptor: String): ByteArray =
         connectedGatt(handle).readDescriptor(dev.warsha.remoteble.protocol.DescRef(service, characteristic, descriptor))
@@ -208,6 +224,7 @@ class RemoteBleGateway internal constructor(
             val pump = session.events()
                 .onSubscription {
                     try {
+                        awaitReady()
                         session.request(Op.ObserveStart(subId, DeviceHandle(handle), char), timeouts.op).orThrow()
                         onStarted()
                     } catch (error: Throwable) {
@@ -239,8 +256,10 @@ class RemoteBleGateway internal constructor(
         return ManagedStream(subId, events) { session.request(Op.ObserveStop(subId), timeouts.op).orThrow() }
     }
 
-    private suspend fun connectedGatt(handle: String): RemoteGattClient =
-        gatt(handle).also { it.connect() }
+    private suspend fun connectedGatt(handle: String): RemoteGattClient {
+        awaitReady()
+        return gatt(handle).also { it.connect() }
+    }
 
     override fun close() {
         kotlinx.coroutines.runBlocking { session.close() }

@@ -35,7 +35,7 @@ val configuredAgent: File? = ((project.findProperty("remoteble.agent.jar") as St
     ?.takeIf { it.isNotBlank() }
     ?.let { rootProject.file(it) }
 
-val agentVersion = "0.11.0"
+val agentVersion = "0.12.0"
 val agentDirectory = layout.buildDirectory.dir("live-agent")
 val fetchedAgent = agentDirectory.map { it.file("remoteble-agent-$agentVersion-all.jar") }
 
@@ -48,6 +48,9 @@ fun Test.sharedConfiguration() {
     systemProperty("remoteble.cli.libs", rootProject.file("cli/build/libs").absolutePath)
     systemProperty("remoteble.cli.jar", "remoteble-${rootProject.version}-all.jar")
     systemProperty("remoteble.repo.root", rootProject.projectDir.absolutePath)
+    // Keeps the simulated agent's own log inside the build tree so CI can upload it; a temp dir
+    // leaves a TRANSPORT_LOST failure with no record of what the agent did.
+    systemProperty("remoteble.agent.workspace", layout.buildDirectory.dir("live-agent-run").get().asFile.absolutePath)
     testLogging { showStandardStreams = false; events("failed") }
 }
 
