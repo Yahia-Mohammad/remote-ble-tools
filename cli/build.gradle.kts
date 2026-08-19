@@ -312,9 +312,9 @@ listOf(
     val nativeBomJson = layout.buildDirectory.file("reports/cyclonedx-direct/${spec.target}/sbom.json")
     val nativeBomTask = tasks.register<CyclonedxDirectTask>("${spec.target}Bom") {
         group = "distribution"
-        projectType.set(Component.Type.APPLICATION)
-        componentName.set("remoteble")
-        includeBomSerialNumber.set(false)
+        // Component identity and the serial number come from the shared `configureEach` above.
+        // Restating them here is what let the native documents keep omitting a serial number
+        // after the shared block started emitting one.
         includeConfigs.set(listOf("${spec.target}CompileKlibraries"))
         jsonOutput.set(nativeBomJson)
         xmlOutput.set(layout.buildDirectory.file("reports/cyclonedx-direct/${spec.target}/sbom.xml"))
