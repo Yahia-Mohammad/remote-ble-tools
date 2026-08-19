@@ -206,7 +206,10 @@ val bomJsonOutput = layout.buildDirectory.file("reports/cyclonedx-direct/sbom.js
 tasks.withType<CyclonedxDirectTask>().configureEach {
     projectType.set(Component.Type.APPLICATION)
     componentName.set("remoteble")
-    includeBomSerialNumber.set(false)
+    // `actions/attest` treats a CycloneDX document without a serial number as an unsupported
+    // format outright, so the release cannot attest an SBOM that omits it. Nothing is lost by
+    // emitting one: `metadata.timestamp` already makes each document unique per build.
+    includeBomSerialNumber.set(true)
 }
 tasks.named<CyclonedxDirectTask>("cyclonedxDirectBom") {
     includeConfigs.set(listOf("jvmRuntimeClasspath"))
