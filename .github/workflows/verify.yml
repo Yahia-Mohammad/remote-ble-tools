@@ -229,20 +229,29 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3 # v4.4.2
       - run: ./gradlew :cli:releaseArchive :cli:skillChecksum
-      - run: test -s cli/build/distributions/remoteble-*.zip
-      - run: unzip -l cli/build/distributions/remoteble-*.zip | grep -E 'LICENSE|NOTICE|SHA256SUMS|sbom.json|rble'
-      - run: unzip -l cli/build/distributions/remoteble-*.zip | grep -q 'dist/skills/remoteble/SKILL.md'
+      # `remoteble-*.zip` also matches the skill archive, so every step below received two paths:
+      # `test` saw a stray operand and `unzip` read the second path as a member filter inside the
+      # first. Resolve the one JVM archive here and let the rest of the job name it.
+      - name: Resolve the JVM release archive
+        run: |
+          shopt -s nullglob
+          archives=(cli/build/distributions/remoteble-[0-9]*.zip)
+          test "${#archives[@]}" -eq 1
+          test -s "${archives[0]}"
+          echo "JVM_ARCHIVE=${archives[0]}" >> "$GITHUB_ENV"
+      - run: unzip -l "$JVM_ARCHIVE" | grep -E 'LICENSE|NOTICE|SHA256SUMS|sbom.json|rble'
+      - run: unzip -l "$JVM_ARCHIVE" | grep -q 'dist/skills/remoteble/SKILL.md'
       - run: ( cd cli/build/distributions && test -s remoteble-skill-*.zip && shasum -a 256 -c remoteble-skill-*.zip.sha256 )
       # The SBOM used to ship as a placeholder that declared no dependencies. A scanner treats that
       # as authoritative, so assert the document lists real libraries rather than arriving as an
       # empty application-only component.
       - run: |
-          unzip -p cli/build/distributions/remoteble-*.zip sbom.json \
+          unzip -p "$JVM_ARCHIVE" sbom.json \
             | python3 -c 'import json,sys; b=json.load(sys.stdin); assert b["bomFormat"]=="CycloneDX"; assert sum(1 for c in b["components"] if c["type"]=="library")>=10'
       # Extract rather than list: an entry can be present and still arrive non-executable, which is
       # a broken install for anyone who unzips the archive and runs the launcher.
       - run: |
-          unzip -q cli/build/distributions/remoteble-*.zip -d "$RUNNER_TEMP/jvm-archive"
+          unzip -q "$JVM_ARCHIVE" -d "$RUNNER_TEMP/jvm-archive"
           test -x "$RUNNER_TEMP/jvm-archive/dist/bin/remoteble"
           test -x "$RUNNER_TEMP/jvm-archive/dist/bin/rble"
           "$RUNNER_TEMP/jvm-archive/dist/bin/remoteble" --version
