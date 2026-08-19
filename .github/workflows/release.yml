@@ -311,6 +311,10 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          # This job only downloads artifacts, so there is no checkout and no git remote for the
+          # CLI to infer the repository from. Name it explicitly rather than checking out a tree
+          # the job has no other use for.
+          GH_REPO: ${{ github.repository }}
           PRERELEASE: ${{ needs.metadata.outputs.prerelease }}
         run: |
           set -euo pipefail
