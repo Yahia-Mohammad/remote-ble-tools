@@ -158,12 +158,14 @@ val validateSkill = tasks.register("validateSkill") {
         check(!frontmatter.contains("compatibility:")) { "compatibility belongs in the body prerequisites section" }
         val skillVersion = Regex("(?m)^  version: [\\\"]?([^\\\"\\s]+)").find(frontmatter)?.groupValues?.get(1) ?: error("metadata.version is required")
         val projectVersion = project.version.toString()
-        val prereleaseBaseVersion = Regex("^(\\d+\\.\\d+\\.\\d+)-").find(projectVersion)?.groupValues?.get(1)
-        check(
-            skillVersion == projectVersion ||
-                (projectVersion == "0.1.0-SNAPSHOT" && skillVersion == "0.1.0") ||
-                skillVersion == prereleaseBaseVersion,
-        ) { "skill metadata version does not match release version" }
+        // A development build carries `-SNAPSHOT` and a candidate `-rc.N`, while the skill ships one
+        // version per release line. Comparing against the release version both describe keeps the
+        // rule general: naming the development version literally meant every version bump silently
+        // required editing this check too.
+        val releaseVersion = Regex("^(\\d+\\.\\d+\\.\\d+)").find(projectVersion)?.groupValues?.get(1)
+        check(skillVersion == projectVersion || skillVersion == releaseVersion) {
+            "skill metadata version ($skillVersion) does not match release version ($projectVersion)"
+        }
         check(text.lineSequence().count() <= 500) { "SKILL.md must remain under 500 lines" }
         Regex("\\[[^]]+]\\(([^)#]+)(?:#[^)]+)?\\)").findAll(text).forEach { match -> check(skillSource.resolve(match.groupValues[1]).isFile) { "missing skill reference ${match.groupValues[1]}" } }
         val forbidden = skillSource.walkTopDown().filter { it.isFile && !it.relativeTo(skillSource).invariantSeparatorsPath.startsWith("evals/") }.filter { file ->

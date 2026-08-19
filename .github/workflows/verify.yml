@@ -20,6 +20,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Packages carry a version string that has to look like a release, and the skill declares a
+      # version that has to match whatever the build is called. Pinning a literal here meant both
+      # broke on the next bump, so derive it from the one place the version is defined.
+      - id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(sed -n 's/^remoteble\.version=//p' gradle.properties | sed 's/-SNAPSHOT$//')
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
   dependency-locks:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -80,6 +98,7 @@ jobs:
     # Self-hosted only to avoid the 10x macOS billing while the repo is still private. Public repos
     # get free Actions minutes, and a self-hosted runner on a public repo is a security hole (fork
     # PRs would execute arbitrary code on the Mac). Revert this block and the timeout below together.
+    needs: version
     runs-on: [self-hosted, macOS, apple]
     timeout-minutes: 120  # relaxed for the local runner; restore to 30 on revert
     steps:
@@ -89,7 +108,7 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
-      - run: ./gradlew :core:macosArm64Test :cli:macosArm64Test :integration-tests:nativeLockHandoffTest :cli:macosArm64NativeArchive -Premoteble.version=0.1.0
+      - run: ./gradlew :core:macosArm64Test :cli:macosArm64Test :integration-tests:nativeLockHandoffTest :cli:macosArm64NativeArchive -Premoteble.version=${{ needs.version.outputs.version }}
       - run: |
           cli/build/bin/macosArm64/remotebleReleaseExecutable/remoteble.kexe --help
           unzip -q cli/build/distributions/remoteble-macos-arm64-*.zip -d "$RUNNER_TEMP/macos-archive"
@@ -98,9 +117,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          archive=$(pwd)/cli/build/distributions/remoteble-macos-arm64-0.1.0.zip
+          archive=$(pwd)/cli/build/distributions/remoteble-macos-arm64-${{ needs.version.outputs.version }}.zip
           sha256=$(shasum -a 256 "$archive" | awk '{print $1}')
-          packaging/render-homebrew-formula.sh 0.1.0 "file://$archive" "$sha256" "$RUNNER_TEMP/remoteble.rb"
+          packaging/render-homebrew-formula.sh "${{ needs.version.outputs.version }}" "file://$archive" "$sha256" "$RUNNER_TEMP/remoteble.rb"
           # Homebrew 6.x takes a path for `brew style` only: `brew audit` disables path
           # arguments outright, and `brew install` rejects any formula that is not in a tap.
           # Both therefore resolve the formula by name. Stage it in a
@@ -142,6 +161,7 @@ jobs:
           path: cli/build/distributions/remoteble-macos-arm64-*.zip
 
   native-linux:
+    needs: version
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -161,15 +181,15 @@ jobs:
       # The Native state lock and record reader are the two places where this CLI depends on
       # libc behaviour that differs between platforms, so their tests have to run on Linux and
       # not only on the macOS runner.
-      - run: ./gradlew :core:linuxX64Test :cli:linuxX64Test :integration-tests:nativeLockHandoffTest :cli:linuxX64NativeArchive :cli:linuxX64Packages -Premoteble.version=0.1.0
+      - run: ./gradlew :core:linuxX64Test :cli:linuxX64Test :integration-tests:nativeLockHandoffTest :cli:linuxX64NativeArchive :cli:linuxX64Packages -Premoteble.version=${{ needs.version.outputs.version }}
       - run: |
           cli/build/bin/linuxX64/remotebleReleaseExecutable/remoteble.kexe --help
           unzip -q cli/build/distributions/remoteble-linux-x64-*.zip -d "$RUNNER_TEMP/linux-x64-archive"
           "$RUNNER_TEMP/linux-x64-archive/dist/bin/remoteble" --version
       - name: Inspect, install, and remove x64 packages
         run: |
-          packaging/verify-linux-package.sh deb cli/build/distributions/remoteble_0.1.0_amd64.deb 0.1.0 amd64
-          packaging/verify-linux-package.sh rpm cli/build/distributions/remoteble-0.1.0-1.x86_64.rpm 0.1.0 amd64
+          packaging/verify-linux-package.sh deb cli/build/distributions/remoteble_${{ needs.version.outputs.version }}_amd64.deb ${{ needs.version.outputs.version }} amd64
+          packaging/verify-linux-package.sh rpm cli/build/distributions/remoteble-${{ needs.version.outputs.version }}-1.x86_64.rpm ${{ needs.version.outputs.version }} amd64
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: remoteble-linux-x64
@@ -181,6 +201,7 @@ jobs:
   native-linux-arm64:
     # Kotlin/Native supports Linux ARM64 as a target from Linux x64, but does not support an
     # ARM64 Linux host. The following package-test job runs the resulting binaries on ARM64.
+    needs: version
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -197,7 +218,7 @@ jobs:
         run: |
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-      - run: ./gradlew :integration-tests:nativeLockHandoffTest :cli:linuxArm64NativeArchive :cli:linuxArm64Packages -Premoteble.version=0.1.0
+      - run: ./gradlew :integration-tests:nativeLockHandoffTest :cli:linuxArm64NativeArchive :cli:linuxArm64Packages -Premoteble.version=${{ needs.version.outputs.version }}
       - run: |
           unzip -q cli/build/distributions/remoteble-linux-arm64-*.zip -d "$RUNNER_TEMP/linux-arm64-archive"
           file "$RUNNER_TEMP/linux-arm64-archive/dist/bin/remoteble" | grep -Eqi 'arm aarch64|aarch64'
@@ -210,7 +231,7 @@ jobs:
             cli/build/distributions/remoteble-*.aarch64.rpm
 
   native-linux-arm64-package-test:
-    needs: native-linux-arm64
+    needs: [version, native-linux-arm64]
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
@@ -221,8 +242,8 @@ jobs:
           path: packages
       - name: Inspect, install, and remove ARM64 packages
         run: |
-          packaging/verify-linux-package.sh deb packages/remoteble_0.1.0_arm64.deb 0.1.0 arm64
-          packaging/verify-linux-package.sh rpm packages/remoteble-0.1.0-1.aarch64.rpm 0.1.0 arm64
+          packaging/verify-linux-package.sh deb packages/remoteble_${{ needs.version.outputs.version }}_arm64.deb ${{ needs.version.outputs.version }} arm64
+          packaging/verify-linux-package.sh rpm packages/remoteble-${{ needs.version.outputs.version }}-1.aarch64.rpm ${{ needs.version.outputs.version }} arm64
 
   package:
     runs-on: ubuntu-latest
