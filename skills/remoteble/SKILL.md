@@ -1,12 +1,11 @@
 ---
 name: remoteble
 description: >-
-  Operate a RemoteBLE-connected device with the `remoteble` CLI: preflight a RemoteBLE agent,
-  scan its remote BLE radio, inspect GATT, read characteristics, collect bounded notifications,
-  perform explicitly authorized writes, or diagnose a RemoteBLE hardware-in-the-loop run. Use
-  only when the task requires interaction with a RemoteBLE agent or a device reachable through
-  it. Do not use for general BLE explanations, Bluetooth audio, Web Bluetooth, implementing an
-  app or peripheral without RemoteBLE, or unrelated remote-agent work.
+  Configure and operate the `remoteble` CLI for a RemoteBLE-connected device: set up local
+  endpoint, token-source, and profile configuration; preflight a RemoteBLE agent; scan, inspect,
+  read, observe, perform explicitly authorized writes, or diagnose a hardware-in-the-loop run.
+  Do not use for general BLE explanations, Bluetooth audio, Web Bluetooth, implementing an app
+  or peripheral without RemoteBLE, or unrelated remote-agent work.
 license: Apache-2.0
 metadata:
   author: Warsha
@@ -32,11 +31,31 @@ information, not an obstacle to route around.
 ## Prerequisites
 
 Require a shell, the `remoteble` executable on `PATH`, and network reachability to a RemoteBLE
-agent compatible with this CLI. The agent endpoint and bearer token must already be configured by
-the operator. This skill does not install the CLI, create credentials, change policy, approve shell
-permissions, or grant write authority.
+agent compatible with this CLI. The endpoint and a bearer-token *source* must come from the user
+or operator. The token value itself is a credential: never put it in a YAML file, command line,
+shell history, output, or chat. Have the operator set it in the configured environment variable or
+supply it to a one-shot command with `--token-stdin`.
 
-## Start every task here
+This skill may create or edit a user-owned local CLI configuration when the user asks for setup.
+It cannot create credentials, change agent-side policy, approve shell permissions, or grant write
+authority.
+
+## Configure the CLI
+
+Use this section when the user asks to install configuration, change an endpoint, select a profile,
+or diagnose a configuration problem. Read [references/configuration.md](references/configuration.md)
+before creating or editing a file.
+
+Inspect an existing file first and change only the requested fields; preserve unrelated profiles,
+logging settings, and policy. Start new files read-only, omit `agent.clientId` so the CLI uses its
+machine-specific persisted identity, and store only the token environment-variable *name*. Validate
+and show the effective configuration after every edit before attempting a connection.
+
+Changing `policy.readOnly` or `policy.writeRules` is a separate policy-authoring task, not an
+automatic part of performing a requested write. Do it only when the user explicitly requests the
+exact local policy change. Never alter policy merely to make a refused command pass.
+
+## Start every device-operation task here
 
 ```bash
 remoteble agent status          # is an agent reachable, and what state is it in?
@@ -118,7 +137,8 @@ it does not, report the ambiguity to a human and stop.
 ## Standing rules
 
 1. **Start read-only and stay there** unless a human has explicitly authorized a specific write.
-   Never edit the policy file or add a rule to make a command succeed.
+   Never alter local policy in response to a refusal. Author a narrow rule only as a separate,
+   explicitly requested configuration task; that edit does not itself authorize a device write.
 2. **Bound every scan and every observe.** Unbounded operations are how a retry loop becomes a flat
    battery on a device nobody is watching.
 3. **Inspect before touching.** Read the GATT tree and check the characteristic's properties before
@@ -139,6 +159,8 @@ it does not, report the ambiguity to a human and stop.
 
 Read these when the task calls for them, not upfront:
 
+- [references/configuration.md](references/configuration.md) — supported YAML fields, profiles,
+  environment overrides, secret handling, safe editing, validation, and exact local write rules.
 - [references/workflows.md](references/workflows.md) — procedures worth following exactly: bringing
   up an unknown peripheral, authoring a hardware-in-the-loop test, correlating BLE against a serial
   log, and producing a diagnostic report.

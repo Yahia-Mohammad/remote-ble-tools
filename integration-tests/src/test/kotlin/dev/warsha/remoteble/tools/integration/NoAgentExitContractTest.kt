@@ -53,21 +53,26 @@ class NoAgentExitContractTest {
         assertTrue(result.stderr.contains("\"exitCode\":9"), result.stderr)
     }
 
-    @Test fun `config show uses its published result discriminator`() {
-        val result = runCli(closedPort(), listOf("--json", "config", "show"))
+    @Test fun `config show uses its published discriminator and effective overrides`() {
+        val port = closedPort()
+        val result = runCli(port, listOf("--client-id", "override-client", "--json", "config", "show"))
         assertEquals(0, result.exitCode, result.stderr)
         assertTrue(result.stdout.contains("\"type\":\"config.show\""), result.stdout)
+        assertTrue(result.stdout.contains("\"endpoint\":\"ws://127.0.0.1:$port/agent\""), result.stdout)
+        assertTrue(result.stdout.contains("\"clientId\":\"override-client\""), result.stdout)
     }
 
     @Test fun `ordinary commands retain the operating system SIGINT behavior`() {
         assumeFalse(System.getProperty("os.name").lowercase().contains("win"), "POSIX-only signal assertion")
         val launcher = PackagedCli.launcher()
         val logs = Files.createTempDirectory("remoteble-sigint")
+        val config = logs.resolve("config.yaml")
+        Files.writeString(config, "schemaVersion: 1\n")
         val process = ProcessBuilder(
             "java", "-jar", launcher.toString(), "--token-stdin", "agent", "status",
         ).apply {
             environment()["REMOTE_BLE_LOG_DIR"] = logs.toString()
-            environment()["REMOTE_BLE_CONFIG"] = logs.resolve("absent.yaml").toString()
+            environment()["REMOTE_BLE_CONFIG"] = config.toString()
             environment()["REMOTE_BLE_CLIENT_ID_FILE"] = logs.resolve("client-id").toString()
         }.start()
         try {
@@ -101,11 +106,13 @@ class NoAgentExitContractTest {
             }.apply { isDaemon = true; start() }
             val launcher = PackagedCli.launcher()
             val logs = Files.createTempDirectory("remoteble-shell-sigint")
+            val config = logs.resolve("config.yaml")
+            Files.writeString(config, "schemaVersion: 1\n")
             val process = ProcessBuilder(
                 "java", "-jar", launcher.toString(), "--endpoint", "ws://127.0.0.1:${silentServer.localPort}/agent", "shell",
             ).apply {
                 environment()["REMOTE_BLE_LOG_DIR"] = logs.toString()
-                environment()["REMOTE_BLE_CONFIG"] = logs.resolve("absent.yaml").toString()
+                environment()["REMOTE_BLE_CONFIG"] = config.toString()
                 environment()["REMOTE_BLE_CLIENT_ID_FILE"] = logs.resolve("client-id").toString()
                 environment()["REMOTE_BLE_TOKEN"] = "integration-placeholder"
             }.start()
@@ -132,12 +139,14 @@ class NoAgentExitContractTest {
         assumeFalse(System.getProperty("os.name").lowercase().contains("win"), "POSIX-only launcher assertion")
         val launcher = PackagedCli.launcher()
         val logs = Files.createTempDirectory("remoteble-no-agent")
+        val config = logs.resolve("config.yaml")
+        Files.writeString(config, "schemaVersion: 1\n")
         val process = ProcessBuilder(
             listOf("java", "-jar", launcher.toString(), "--endpoint", "ws://127.0.0.1:$port/agent") + arguments,
         ).apply {
             // Keep the run off the developer's real configuration, identity, and log directory.
             environment()["REMOTE_BLE_LOG_DIR"] = logs.toString()
-            environment()["REMOTE_BLE_CONFIG"] = logs.resolve("absent.yaml").toString()
+            environment()["REMOTE_BLE_CONFIG"] = config.toString()
             environment()["REMOTE_BLE_CLIENT_ID_FILE"] = logs.resolve("client-id").toString()
             environment()["REMOTE_BLE_TOKEN"] = "integration-placeholder"
         }.start()

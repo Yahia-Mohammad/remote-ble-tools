@@ -125,6 +125,9 @@ jobs:
           # Both therefore resolve the formula by name. Stage it in a
           # throwaway tap; the cleanup step below removes it even when this step fails, which
           # matters on the self-hosted runner where /opt/homebrew persists between jobs.
+          # The runner can also retain the release-tap formula from an earlier run; Homebrew
+          # cannot install the throwaway-tap formula until that copy is removed.
+          HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall --force remoteble 2>/dev/null || true
           brew untap remoteble/formula-check 2>/dev/null || true
           brew tap-new --no-git remoteble/formula-check
           cp "$RUNNER_TEMP/remoteble.rb" "$(brew --repository remoteble/formula-check)/Formula/remoteble.rb"

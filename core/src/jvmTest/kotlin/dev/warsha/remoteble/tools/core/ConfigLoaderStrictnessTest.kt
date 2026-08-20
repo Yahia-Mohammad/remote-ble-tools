@@ -13,6 +13,15 @@ import kotlin.test.assertTrue
  * least able to diagnose. Pin it so a dependency bump has to argue with a test.
  */
 class ConfigLoaderStrictnessTest {
+    @Test fun `a missing explicitly selected file is a usage failure`() {
+        val path = Files.createTempDirectory("remoteble-config-missing").resolve("config.yaml").toString()
+
+        val failure = assertFailsWith<CliFailure> { ConfigLoader.load(path) }
+
+        assertEquals(ExitCode.USAGE, failure.exitCode)
+        assertTrue(failure.message.contains(path), "the failure must name the missing file: ${failure.message}")
+    }
+
     @Test fun `an unknown key is a usage failure, not a silent default`() {
         val path = write(
             """
