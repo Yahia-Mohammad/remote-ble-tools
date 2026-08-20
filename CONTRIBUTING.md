@@ -35,5 +35,11 @@ Native changes need the matching target test. On a matching host, also run:
   normal integration peer; use hardware testing where simulation cannot establish behavior.
 - Keep commits focused and explain user-visible or protocol-visible behavior in the pull request.
 
+## Releasing
+
+Cutting a release is a documented procedure rather than a tag pushed on instinct: two files carry
+the version and have to move together, and the tag pattern decides whether packages and the Homebrew
+formula publish at all. See [`docs/releasing.md`](docs/releasing.md).
+
 For security-sensitive issues, follow [`SECURITY.md`](SECURITY.md) rather than opening a public
 issue.
