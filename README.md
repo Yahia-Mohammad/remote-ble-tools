@@ -11,7 +11,7 @@ Primary executable: `remoteble` (optional short alias `rble`).
 
 Terminal recording of a RemoteBLE read-only treadmill check:
 
-https://github.com/user-attachments/assets/7d172350-a7e0-4cb2-9ab0-89b6f851b605
+https://github.com/user-attachments/assets/f7126056-8b77-4926-bb57-1b28b7b92982
 
 The recording shows agent preflight, device discovery, GATT inspection, Battery Level and Heart
 Rate reads, a short Treadmill Data observation, and lease release—without sending a device write.
