@@ -9,7 +9,9 @@ Primary executable: `remoteble` (optional short alias `rble`).
 
 ## Demo
 
-[![Terminal recording of a RemoteBLE read-only treadmill check](docs/assets/remoteble-treadmill-demo-preview.jpg)](docs/assets/remoteble-treadmill-demo.mov)
+[![Terminal recording of a RemoteBLE read-only treadmill check]:
+
+https://github.com/user-attachments/assets/7d172350-a7e0-4cb2-9ab0-89b6f851b605
 
 Watch the [full read-only treadmill-check demo](docs/assets/remoteble-treadmill-demo.mov)
 (1 min 58 sec, H.264 MOV, 76 MB). The recording shows agent preflight, device discovery,
