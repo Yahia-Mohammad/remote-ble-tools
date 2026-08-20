@@ -134,6 +134,7 @@ goes to stdout; diagnostics go to stderr.
 | [`docs/slim-client.md`](docs/slim-client.md) | Embedded protocol/WebSocket/CBOR client boundary and update rules |
 | [`docs/session-protocol.md`](docs/session-protocol.md) | Persistent machine session and human shell protocol |
 | [`docs/logging-audit.md`](docs/logging-audit.md) | Redacted audit/debug logging, retention, and failure policy |
+| [`docs/releasing.md`](docs/releasing.md) | How to cut a release: version files that must agree, tag patterns, and what to check afterwards |
 | [`docs/distribution-roadmap.md`](docs/distribution-roadmap.md) | Deferred packaging work: cask automation, apt/yum hosting, Developer ID signing |
 
 ## Repository layout
