@@ -28,6 +28,13 @@ internal class CliRunner(
 
     private val configPath: Path = logDirectory.resolve("config.yaml")
 
+    init {
+        // REMOTE_BLE_CONFIG is deliberately explicit to keep acceptance runs off the developer's
+        // configuration. Keep that isolated file valid now that an explicit missing path is a
+        // usage error; tests which need a different policy replace it through withConfig().
+        Files.writeString(configPath, "schemaVersion: 1\n")
+    }
+
     fun run(vararg arguments: String): CliResult = run(arguments.toList(), stdin = null)
 
     private fun command(arguments: List<String>): List<String> =
