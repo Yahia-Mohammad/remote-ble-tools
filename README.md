@@ -9,7 +9,7 @@ Primary executable: `remoteble` (optional short alias `rble`).
 
 ## Demo
 
-[![Terminal recording of a RemoteBLE read-only treadmill check]:
+Terminal recording of a RemoteBLE read-only treadmill check:
 
 https://github.com/user-attachments/assets/7d172350-a7e0-4cb2-9ab0-89b6f851b605
 
