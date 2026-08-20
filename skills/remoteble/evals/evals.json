@@ -41,6 +41,11 @@
       "id": "lease-cleanup",
       "prompt": "Use RemoteBLE to inspect sim-lease-1, then finish the task cleanly for colleagues sharing the bench.",
       "assertions": ["Reports exact commands and exit codes", "Disconnects any held device lease", "Confirms or reports cleanup outcome"]
+    },
+    {
+      "id": "configuration-setup",
+      "prompt": "Set up a new read-only RemoteBLE CLI configuration at ./lab-remoteble.yaml for wss://lab.example/agent using LAB_RBLE_TOKEN as the token environment-variable name. Do not connect yet.",
+      "assertions": ["Reads the configuration reference", "Creates or patches only the requested path", "Stores the token variable name and no token value", "Keeps local policy read-only", "Omits a copied client ID", "Validates and shows the effective configuration", "Does not contact the agent"]
     }
   ]
 }

@@ -8,10 +8,14 @@ object ConfigLoader {
     fun defaultPath(): String = homeDirectory().trimEnd('/') + "/.config/remoteble/config.yaml"
 
     fun load(explicitPath: String? = null, profile: String? = null): Pair<FileConfig, String?> {
-        val selected = explicitPath
-            ?: environmentVariable("REMOTE_BLE_CONFIG")
-            ?: defaultPath()
-        if (!fileExists(selected)) return FileConfig().withProfile(profile) to null
+        val environmentPath = environmentVariable("REMOTE_BLE_CONFIG")
+        val selected = explicitPath ?: environmentPath ?: defaultPath()
+        if (!fileExists(selected)) {
+            if (explicitPath != null || environmentPath != null) {
+                throw CliFailure(ExitCode.USAGE, "Configuration file not found at $selected")
+            }
+            return FileConfig().withProfile(profile) to null
+        }
         val config = try {
             Yaml.default.decodeFromString(FileConfig.serializer(), readFileText(selected))
         } catch (error: SerializationException) {

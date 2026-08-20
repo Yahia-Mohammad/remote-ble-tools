@@ -19,6 +19,14 @@ import org.junit.jupiter.api.Assumptions.assumeFalse
  * own mapping — the layer where this behaviour lives.
  */
 class UsageContractTest {
+    @Test fun `a missing environment-selected config file is refused`() {
+        val result = runCli(listOf("config", "validate"))
+
+        assertEquals(2, result.exitCode, result.toString())
+        assertTrue(result.stderr.contains("Configuration file not found"), result.toString())
+        assertEquals("", result.stdout.trim(), result.toString())
+    }
+
     @Test fun `a missing command is refused on stderr with a reason`() {
         listOf(
             listOf("--config", "/nonexistent/config.yaml"),

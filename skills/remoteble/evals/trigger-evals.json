@@ -24,7 +24,7 @@
     "should_trigger": true
   },
   {
-    "query": "my colleague says the beacon in the far lab is stuck. i'm working from home today — can i still poke at it over the network, or do i need to be physically near it?",
+    "query": "configure the remoteble CLI on this laptop for wss://lab.example/agent using LAB_RBLE_TOKEN, keep it read-only, and validate the YAML without connecting yet",
     "should_trigger": true
   },
   {

@@ -306,8 +306,10 @@ policy:                                # advisory — see safety-model.md
 ```
 
 Unknown keys are rejected rather than ignored, so a typo is a startup failure and not a silently
-disabled guardrail. `remoteble config validate` checks a file without contacting an agent. There is
-no descriptor-write surface to enable: `descriptor read` is the only descriptor operation.
+disabled guardrail. `remoteble config validate` checks a file without contacting an agent. An
+explicit `--config` path or `REMOTE_BLE_CONFIG` path that does not exist is an error; only an absent
+default file falls back to built-in defaults. There is no descriptor-write surface to enable:
+`descriptor read` is the only descriptor operation.
 
 Resolution order:
 
@@ -315,8 +317,9 @@ Resolution order:
 command-line option → environment variable → selected configuration profile → defaults
 ```
 
-Secrets come from environment variables, stdin, or an OS credential store — never literal
-command-line arguments (visible in `ps` and shell history) or committed configuration.
+Secrets come from environment variables or stdin — never literal command-line arguments (visible
+in `ps` and shell history) or committed configuration. An external credential manager may populate
+the environment, but the CLI has no direct credential-store integration.
 
 `agent.clientId` is not a label. It is the lease-resumption key, and both changing it and sharing
 it have consequences — see [`state-model.md`](state-model.md#the-client-key-is-load-bearing).

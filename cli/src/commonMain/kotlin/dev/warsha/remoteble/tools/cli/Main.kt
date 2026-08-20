@@ -848,19 +848,19 @@ private class ConfigCommand : CliktCommand(name = "config") {
 
 private class ConfigShowCommand(root: RootCommand) : RootChild(root, "show", "Show resolved configuration with secret sources redacted.") {
     override fun run() = execute {
-        root.resolvedConfig() // validates identity overrides and emits the copied-auto-ID warning once.
+        val resolved = root.resolvedConfig()
         val config = root.config()
         val data = buildJsonObject {
             put("schemaVersion", config.schemaVersion)
             put("agent", buildJsonObject {
-                put("endpoint", config.agent.endpoint)
-                put("clientId", config.agent.clientId ?: "derived")
-                put("tokenEnvironmentVariable", config.agent.tokenEnvironmentVariable)
-                put("operatorTokenEnvironmentVariable", config.agent.operatorTokenEnvironmentVariable ?: "unset")
+                put("endpoint", resolved.agent.endpoint)
+                put("clientId", resolved.agent.clientId ?: "derived")
+                put("tokenEnvironmentVariable", resolved.agent.tokenEnvironmentVariable)
+                put("operatorTokenEnvironmentVariable", resolved.agent.operatorTokenEnvironmentVariable ?: "unset")
             })
             put("policy", buildJsonObject {
-                put("readOnly", config.policy.readOnly)
-                put("maximumWriteBytes", config.policy.maximumWriteBytes)
+                put("readOnly", resolved.policy.readOnly)
+                put("maximumWriteBytes", resolved.policy.maximumWriteBytes)
             })
             put("logging", buildJsonObject {
                 put("level", environmentVariable("REMOTE_BLE_LOG_LEVEL") ?: config.defaults.logLevel)
@@ -870,7 +870,7 @@ private class ConfigShowCommand(root: RootCommand) : RootChild(root, "show", "Sh
         root.emit(
             "config.show",
             data,
-            "endpoint=${config.agent.endpoint}\nclientId=${config.agent.clientId ?: "derived"}\ntoken=${config.agent.tokenEnvironmentVariable} (environment)",
+            "endpoint=${resolved.agent.endpoint}\nclientId=${resolved.agent.clientId ?: "derived"}\ntoken=${resolved.agent.tokenEnvironmentVariable} (environment)",
         )
     }
 }
