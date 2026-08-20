@@ -7,6 +7,15 @@ Primary executable: `remoteble` (optional short alias `rble`).
 
 > Control and debug BLE devices anywhere using commands, pipes, and AI coding agents.
 
+## Demo
+
+[![Terminal recording of a RemoteBLE read-only treadmill check](docs/assets/remoteble-treadmill-demo-preview.jpg)](docs/assets/remoteble-treadmill-demo.mov)
+
+Watch the [full read-only treadmill-check demo](docs/assets/remoteble-treadmill-demo.mov)
+(1 min 58 sec, H.264 MOV, 76 MB). The recording shows agent preflight, device discovery,
+GATT inspection, Battery Level and Heart Rate reads, a short Treadmill Data observation, and
+lease release—without sending a device write.
+
 ## What this is
 
 A CLI that turns the RemoteBLE SDK into a general-purpose developer tool, exposing the remote BLE
