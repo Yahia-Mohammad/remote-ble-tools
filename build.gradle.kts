@@ -16,6 +16,42 @@ allprojects {
     dependencyLocking {
         lockAllConfigurations()
     }
+
+    /**
+     * Resolves the dependency graph of every resolvable configuration. With `--write-locks` this
+     * regenerates every lockfile from the version catalog, which is how CI checks them: it fails
+     * when the regenerated files differ from the committed ones.
+     *
+     * Resolving without `--write-locks` is no check at all: in the default lock mode a stale lock
+     * wins over the catalog, so a version bump that was never relocked still resolves, at the old
+     * version. `dependencies` is no substitute either: it runs per project, prints resolution
+     * failures as text, and succeeds.
+     *
+     * Configurations a host cannot resolve (macOS-only native targets on Linux, say) keep the state
+     * another host wrote for them.
+     */
+    tasks.register("resolveDependencies") {
+        group = "verification"
+        description = "Resolves every configuration; with --write-locks, regenerates every lockfile."
+        val resolvable = configurations.matching { configuration ->
+            // Kotlin's commonizer reads these through its own artifact views; resolved directly they
+            // fail variant selection on every host, lock or no lock.
+            configuration.isCanBeResolved &&
+                configuration.description?.startsWith("Commonized CInterop dependencies") != true
+        }
+        val projectPath = path
+        doLast {
+            val failures = resolvable.flatMap { configuration ->
+                val failure = runCatching {
+                    configuration.incoming.resolutionResult.allDependencies
+                        .filterIsInstance<org.gradle.api.artifacts.result.UnresolvedDependencyResult>()
+                        .map { "${it.attempted.displayName}: ${it.failure.message?.lineSequence()?.first()}" }
+                }
+                failure.getOrElse { listOf(it.message.orEmpty()) }.map { "$projectPath:${configuration.name} -> $it" }
+            }
+            check(failures.isEmpty()) { "Unresolved dependencies:\n" + failures.joinToString("\n") { "  - $it" } }
+        }
+    }
 }
 
 tasks.register("formatCheck") {
