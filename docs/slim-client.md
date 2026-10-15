@@ -10,6 +10,9 @@ depend on `dev.warsha.remoteble:client-sdk`, Kable, Koin, or a local Bluetooth i
 - CBOR frame encoding and decoding through `kotlinx.serialization`.
 - The Ktor WebSocket byte transport, session correlation and handshake, remote scan stream, and
   the remote GATT operations used by the CLI.
+- The `scan.fields` capability (0.15.0): service data, Tx power, connectability and the platform's
+  name on `AdvertisementDto`, decoded only after the CLI negotiates it, since `Cbor.Default` rejects
+  unknown keys.
 - Capability-gated management contracts: `agent.status`, immediate `slots`, `write.policy`, and
   optional `lease.holder` diagnostics. There is no CLI HTTP dashboard fallback or explicit slots
   query.
@@ -25,8 +28,6 @@ depend on `dev.warsha.remoteble:client-sdk`, Kable, Koin, or a local Bluetooth i
 - Kable `Peripheral`, `Scanner`, identifiers, advertisements, and platform workarounds.
 - Any Android, Apple, JVM/btleplug, or other local-radio backend.
 - Koin modules and the SDK logging facade.
-- The `scan.fields` capability (0.15.0). The CLI does not offer it, so agents keep sending the v1
-  advertisement; adding it means extending `AdvertisementDto` and the scan output together.
 - `AgentPairing` (`remoteble://` links). The CLI takes the endpoint and fingerprint separately, so
   the token in a link never lands in configuration.
 - App-facing peripheral factories and APIs not called by the CLI.

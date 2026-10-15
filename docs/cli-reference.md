@@ -240,6 +240,30 @@ There is no decoded or typed rendering:
 }
 ```
 
+A RemoteBLE 0.15+ agent that advertises `scan.fields` adds what its platform reports of service
+data, Tx power, connectability, and the platform's remembered name, to `scan.result` records, to
+each device in the aggregated `scan` result (most recent value seen), and to `session` scan events.
+Each field appears only when reported; its absence means the agent's platform did not report it,
+not that the device did not advertise it. Service data is keyed by service UUID, and each value
+carries both byte encodings and a length:
+
+```json
+{
+  "handle": "sim-fields-1",
+  "name": "Warsha Fields (sim)",
+  "rssi": -58,
+  "serviceUuids": ["180f"],
+  "manufacturerData": {},
+  "serviceData": {
+    "0000180f-0000-1000-8000-00805f9b34fb": { "hex": "5a", "base64": "Wg==", "length": 1 }
+  },
+  "txPower": -8,
+  "connectable": false
+}
+```
+
+`peripheralName` is untrusted device data and is escaped like `name`.
+
 Failures are envelopes too, written to stderr with `type` `error`:
 
 ```json

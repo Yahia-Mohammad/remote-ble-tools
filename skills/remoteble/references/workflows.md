@@ -18,7 +18,7 @@ The goal is a document a human can check, not a claim that the device "works."
 
 ```bash
 remoteble agent status
-remoteble --jsonl scan --duration 10s              # bounded; jsonl gives name, rssi, services
+remoteble --jsonl scan --duration 10s              # bounded; name, rssi, services, and scan.fields extras
 remoteble --json inspect sim-hrm-1                 # the GATT tree, with properties
 remoteble --json read sim-hrm-1 180f 2a19          # every readable characteristic, one at a time
 ```
@@ -32,6 +32,8 @@ remoteble --json read sim-hrm-1 180f 2a19          # every readable characterist
    Read only what advertises `read`; subscribing to something without `notify` or `indicate` will
    fail and tells you nothing.
 4. **Read every readable characteristic** and tabulate: UUID, SIG name if known, raw hex, length.
+   Record advertised service data and Tx power from the scan too when the agent reports them; they
+   are evidence about the device before any connection, and just as untrusted.
 5. **Propose a protocol hypothesis** — what you think the bytes mean — clearly labelled as a
    hypothesis, with the raw bytes beside it.
 6. **Confirm cheaply.** Where a value should change (a counter, a battery level, a measurement),
