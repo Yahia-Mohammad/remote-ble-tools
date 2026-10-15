@@ -289,6 +289,7 @@ class RemoteBleGateway internal constructor(
             Capabilities.CONNECTION_SLOTS,
             Capabilities.WRITE_POLICY,
             Capabilities.LEASE_HOLDER,
+            Capabilities.SCAN_FIELDS,
             Capabilities.DESCRIPTORS,
             Capabilities.RSSI,
             Capabilities.SCAN_BATCH,

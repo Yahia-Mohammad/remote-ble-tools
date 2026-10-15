@@ -25,6 +25,7 @@ import dev.warsha.remoteble.protocol.AdvertisementDto
 import dev.warsha.remoteble.protocol.Capabilities
 import dev.warsha.remoteble.protocol.ScanFilter
 import dev.warsha.remoteble.protocol.AgentStatusDto
+import dev.warsha.remoteble.tools.core.putScanFields
 import dev.warsha.remoteble.tools.core.AgentFeature
 import dev.warsha.remoteble.tools.core.AuditLogger
 import dev.warsha.remoteble.tools.core.WriteOperationService
@@ -584,6 +585,7 @@ private class ScanCommand(root: RootCommand) : RootChild(root, "scan", "Scan for
                     put("handle", handle); first.name?.let { put("name", escapeDeviceText(it)) }
                     put("rssi", last.rssi); put("eventCount", indexed.size); put("firstSeen", indexed.first().index); put("lastSeen", indexed.last().index)
                     put("serviceUuids", JsonArray(first.serviceUuids.map(::JsonPrimitive)))
+                    putScanFields(latestScanFields(indexed.map { it.value }))
                 }
             }
             root.emit("scan", JsonArray(aggregate), handles.zip(aggregate).joinToString("\n") { (key, value) -> "$key\t${value["eventCount"]} events" }, handles.firstOrNull())
@@ -896,8 +898,23 @@ private fun AdvertisementDto.json(): JsonObject = buildJsonObject {
     put("manufacturerData", buildJsonObject {
         manufacturerData.forEach { (id, value) -> put(id.toString(), value.hex()) }
     })
+    putScanFields(this@json)
 }
 
+/**
+ * The aggregate row reports each scan field as most recently seen: a device can omit a field from
+ * one advertisement (a scan response, say) and carry it in the next, and the latest RSSI is already
+ * what the row shows.
+ */
+private fun latestScanFields(observations: List<AdvertisementDto>): AdvertisementDto {
+    val last = observations.last()
+    return last.copy(
+        serviceData = observations.lastOrNull { it.serviceData.isNotEmpty() }?.serviceData.orEmpty(),
+        txPower = observations.lastOrNull { it.txPower != null }?.txPower,
+        isConnectable = observations.lastOrNull { it.isConnectable != null }?.isConnectable,
+        peripheralName = observations.lastOrNull { it.peripheralName != null }?.peripheralName,
+    )
+}
 
 private fun bytesJson(bytes: ByteArray): JsonObject = buildJsonObject {
     put("hex", bytes.hex())

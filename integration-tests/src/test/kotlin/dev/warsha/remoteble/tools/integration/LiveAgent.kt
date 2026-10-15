@@ -44,6 +44,10 @@ internal object LiveAgent {
     const val PTY_INTERRUPT_HANDLE = "sim-pty-interrupt-1"
     const val BROKEN_PIPE_HANDLE = "sim-broken-pipe-1"
     const val TWIN_NAME = "Warsha Twin (sim)"
+
+    /** Advertises the 0.15 `scan.fields` extras and refuses connections; scan-only. */
+    const val FIELDS_HANDLE = "sim-fields-1"
+    const val FIELDS_NAME = "Warsha Fields (sim)"
     const val HEART_RATE_SERVICE = "180d"
     const val MEASUREMENT_CHARACTERISTIC = "2a37"
     const val CONTROL_POINT_CHARACTERISTIC = "2a39"

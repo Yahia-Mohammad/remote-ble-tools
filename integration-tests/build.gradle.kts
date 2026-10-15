@@ -14,6 +14,7 @@ dependencies {
     testImplementation(project(":core"))
     testImplementation(libs.ktor.client.cio)
     testImplementation(libs.ktor.client.websockets)
+    testImplementation(libs.serialization.json)
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.json.schema.validator) {
