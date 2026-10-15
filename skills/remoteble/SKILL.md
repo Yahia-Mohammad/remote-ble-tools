@@ -10,7 +10,7 @@ description: >-
 license: Apache-2.0
 metadata:
   author: Warsha
-  version: "0.1.2"
+  version: "0.2.0"
 ---
 
 # RemoteBLE CLI
