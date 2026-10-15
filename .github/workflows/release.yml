@@ -67,11 +67,11 @@ jobs:
       SOURCE_DATE_EPOCH: ${{ needs.metadata.outputs.sourceDateEpoch }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
       - name: Verify dependency locks
         run: |
           ./gradlew dependencies --no-daemon
@@ -105,7 +105,7 @@ jobs:
             cli/build/distributions/remoteble-skill-${{ needs.metadata.outputs.version }}.zip
           sbom-path: cli/build/reports/cyclonedx-direct/sbom.json
           create-storage-record: false
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: remoteble-jvm
           path: |
@@ -130,11 +130,11 @@ jobs:
       SOURCE_DATE_EPOCH: ${{ needs.metadata.outputs.sourceDateEpoch }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
       - run: ./gradlew :core:macosArm64Test :cli:macosArm64Test :integration-tests:nativeLockHandoffTest :cli:macosArm64NativeArchive -Premoteble.version="${{ needs.metadata.outputs.version }}"
       - name: Verify the macOS archive
         run: |
@@ -159,7 +159,7 @@ jobs:
           subject-path: cli/build/distributions/remoteble-macos-arm64-${{ needs.metadata.outputs.version }}.zip
           sbom-path: cli/build/native-release-stage/macosArm64/sbom.json
           create-storage-record: false
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: remoteble-macos-arm64
           path: cli/build/distributions/remoteble-macos-arm64-${{ needs.metadata.outputs.version }}.zip
@@ -177,11 +177,11 @@ jobs:
       SOURCE_DATE_EPOCH: ${{ needs.metadata.outputs.sourceDateEpoch }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v6.0.0
         if: needs.metadata.outputs.stable == 'true'
         with:
@@ -233,12 +233,12 @@ jobs:
             cli/build/distributions/remoteble-${{ needs.metadata.outputs.version }}-1.x86_64.rpm
           sbom-path: cli/build/native-release-stage/linuxX64/sbom.json
           create-storage-record: false
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: remoteble-linux-x64
           path: cli/build/distributions/remoteble-linux-x64-${{ needs.metadata.outputs.version }}.zip
           if-no-files-found: error
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: needs.metadata.outputs.stable == 'true'
         with:
           name: remoteble-linux-x64-packages
@@ -259,11 +259,11 @@ jobs:
       SOURCE_DATE_EPOCH: ${{ needs.metadata.outputs.sourceDateEpoch }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v6.0.0
         if: needs.metadata.outputs.stable == 'true'
         with:
@@ -314,12 +314,12 @@ jobs:
             cli/build/distributions/remoteble-${{ needs.metadata.outputs.version }}-1.aarch64.rpm
           sbom-path: cli/build/native-release-stage/linuxArm64/sbom.json
           create-storage-record: false
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: remoteble-linux-arm64
           path: cli/build/distributions/remoteble-linux-arm64-${{ needs.metadata.outputs.version }}.zip
           if-no-files-found: error
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: needs.metadata.outputs.stable == 'true'
         with:
           name: remoteble-linux-arm64-packages
@@ -337,7 +337,7 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: remoteble-*
           path: downloaded-artifacts
