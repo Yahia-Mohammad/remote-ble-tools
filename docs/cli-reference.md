@@ -321,6 +321,34 @@ Secrets come from environment variables or stdin — never literal command-line 
 in `ps` and shell history) or committed configuration. An external credential manager may populate
 the environment, but the CLI has no direct credential-store integration.
 
+### Encrypted agents
+
+RemoteBLE 0.14 and later agents can serve `wss://` behind their own self-signed TLS identity, and
+do so by default on phones and wherever a desktop agent listens beyond loopback. No certificate
+authority vouches for that identity, so the CLI trusts the agent by its fingerprint instead: the
+`fp=` value in the pairing link the agent prints with `--print-pairing` or shows as a QR code.
+
+```yaml
+agent:
+  endpoint: "wss://192.0.2.10:8080/agent"
+  fingerprint: "sha256:8bddc8daceca6b001bd79b40cea6d53df1a570711087b25f426c9b711a2b98a4"
+```
+
+`--fingerprint` and `REMOTE_BLE_FINGERPRINT` override `agent.fingerprint`. The fingerprint is not a
+secret; the token in the same pairing link is, and still belongs in the token environment variable.
+A `wss://` endpoint without a fingerprint uses ordinary certificate verification, which suits an
+agent behind a TLS proxy with a CA-issued certificate and fails against an agent's own identity. A
+fingerprint on a `ws://` endpoint is a usage error.
+
+An agent presenting a different key is refused inside the TLS handshake, before the bearer token is
+sent, and the command exits 4 naming both fingerprints. It is not retried: the agent's identity was
+reset (`--reset-identity`, or a reinstalled phone agent), or another host is answering at its
+address. Pin the new fingerprint only after confirming the reset was intended.
+
+The JVM distribution and the macOS native executable support `wss://`. The Linux native executables
+cannot open TLS connections and refuse a `wss://` endpoint with exit 7; use the JVM distribution on
+Linux for an encrypted agent.
+
 `agent.clientId` is not a label. It is the lease-resumption key, and both changing it and sharing
 it have consequences — see [`state-model.md`](state-model.md#the-client-key-is-load-bearing).
 `remoteble config validate` should warn when it appears copied between machines.

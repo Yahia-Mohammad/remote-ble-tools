@@ -2,8 +2,9 @@
 name: remoteble
 description: >-
   Configure and operate the `remoteble` CLI for a RemoteBLE-connected device: set up local
-  endpoint, token-source, and profile configuration; preflight a RemoteBLE agent; scan, inspect,
-  read, observe, perform explicitly authorized writes, or diagnose a hardware-in-the-loop run.
+  endpoint, token-source, agent-fingerprint, and profile configuration; preflight a RemoteBLE
+  agent; scan, inspect, read, observe, perform explicitly authorized writes, or diagnose a
+  hardware-in-the-loop run.
   Do not use for general BLE explanations, Bluetooth audio, Web Bluetooth, implementing an app
   or peripheral without RemoteBLE, or unrelated remote-agent work.
 license: Apache-2.0
@@ -32,9 +33,11 @@ information, not an obstacle to route around.
 
 Require a shell, the `remoteble` executable on `PATH`, and network reachability to a RemoteBLE
 agent compatible with this CLI. The endpoint and a bearer-token *source* must come from the user
-or operator. The token value itself is a credential: never put it in a YAML file, command line,
-shell history, output, or chat. Have the operator set it in the configured environment variable or
-supply it to a one-shot command with `--token-stdin`.
+or operator, and for a `wss://` agent so must its identity fingerprint (`sha256:…`). The token value
+itself is a credential: never put it in a YAML file, command line, shell history, output, or chat.
+Have the operator set it in the configured environment variable or supply it to a one-shot command
+with `--token-stdin`. A `remoteble://` pairing link carries the token too, so treat a pasted link as
+a secret: take only its host, port, and `fp=` value, and never echo or store the rest.
 
 This skill may create or edit a user-owned local CLI configuration when the user asks for setup.
 It cannot create credentials, change agent-side policy, approve shell permissions, or grant write
@@ -50,6 +53,11 @@ Inspect an existing file first and change only the requested fields; preserve un
 logging settings, and policy. Start new files read-only, omit `agent.clientId` so the CLI uses its
 machine-specific persisted identity, and store only the token environment-variable *name*. Validate
 and show the effective configuration after every edit before attempting a connection.
+
+RemoteBLE 0.14+ agents reached over a network serve `wss://` behind a self-signed identity, which
+the CLI trusts only through `agent.fingerprint` (or `--fingerprint`). It is not a secret, but it is
+the agent's identity: copy it exactly from what the operator supplies, and never invent, guess, or
+replace it. The Linux native executable cannot use `wss://`; the JVM distribution can.
 
 Changing `policy.readOnly` or `policy.writeRules` is a separate policy-authoring task, not an
 automatic part of performing a requested write. Do it only when the user explicitly requests the
@@ -123,7 +131,7 @@ JVM build writes unrelated warnings to stderr.
 | 0 | Success | — |
 | 1 | Failure | Read the message; it is not one of the categories below |
 | 2 | Usage | Fix the command; do not retry it unchanged |
-| 4 | Authentication | Credential missing, wrong, or lacking scope. Ask a human |
+| 4 | Authentication | Credential missing, wrong, or lacking scope; or a `wss://` agent's identity does not match the pinned fingerprint. Ask a human |
 | 5 | Not found | Unknown device or characteristic, or a selector matched more than one device |
 | 6 | Busy | Someone else holds it. Wait or report the holder — do not hammer |
 | 7 | Unsupported | Capability absent, or a policy refusal. **Permanent.** Never retry |
@@ -154,6 +162,9 @@ it does not, report the ambiguity to a human and stop.
    colleagues on shared hardware, and this is the rule easiest to skip without noticing.
 8. **Report the exact commands you ran.** Reproducibility by someone who does not have the device is
    the deliverable.
+9. **Never re-pin an agent to get past an identity mismatch.** Exit 4 with "Agent identity mismatch"
+   means the agent's key changed or another host is answering. Only a human who runs the agent can
+   confirm a deliberate reset and supply the new fingerprint.
 
 ## References
 

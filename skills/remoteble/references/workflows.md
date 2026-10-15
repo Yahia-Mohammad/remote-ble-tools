@@ -105,6 +105,8 @@ during subscription setup is lost, and the causal link is the whole point.
 Written for someone who does not have the device in front of them. Collect, in this order:
 
 1. `remoteble --version` and `remoteble agent status --json` — versions and agent state.
+   `remoteble config show` adds the endpoint and pinned fingerprint, which are not secrets; it
+   never prints a token.
 2. `remoteble agent capabilities` — what this agent supports, so a reader can tell "unsupported"
    from "broken."
 3. `remoteble --json inspect HANDLE` — the GATT tree.

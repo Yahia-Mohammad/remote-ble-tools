@@ -13,8 +13,9 @@ authoritative policy.
 3. If the file exists, read it and patch only the fields the user requested. Preserve unrelated
    profiles, defaults, logging settings, and policy rules. Do not replace the whole file merely
    because a minimal example is shorter.
-4. Collect the agent endpoint and the *name* of the environment variable that contains its bearer
-   token. Never request, render, or persist the token value.
+4. Collect the agent endpoint, the *name* of the environment variable that contains its bearer
+   token, and, for a `wss://` endpoint, the agent's fingerprint. Never request, render, or persist
+   the token value. See [Encrypted agents](#encrypted-agents).
 5. Start a new file with `policy.readOnly: true`. Omit `agent.clientId` unless the user deliberately
    supplies a stable, machine-specific identity; the CLI otherwise creates an owner-only persisted
    identity for the machine.
@@ -55,7 +56,7 @@ counts and limits must pass `config validate`.
 
 - Root: `schemaVersion`, `agent`, `defaults`, `policy`, `profiles`.
 - `agent`: `endpoint`, `tokenEnvironmentVariable`, `clientId`,
-  `operatorTokenEnvironmentVariable`.
+  `operatorTokenEnvironmentVariable`, `fingerprint`.
 - `defaults`: `scanDuration`, `operationTimeout`, `output`, `logLevel`, `logDirectory`.
 - `policy`: `readOnly`, `maximumWriteBytes`, `maximumNotificationCount`,
   `allowUnboundedStreams`, `writeRules`, `maximumWritesPerWindow`, `writeRateWindow`.
@@ -74,6 +75,7 @@ root configuration, then built-in default.
 | Profile | `REMOTE_BLE_PROFILE` | `--profile NAME` |
 | Endpoint | `REMOTE_BLE_ENDPOINT` | `--endpoint URL` |
 | Client identity | `REMOTE_BLE_CLIENT_ID` | `--client-id ID` |
+| Agent fingerprint | `REMOTE_BLE_FINGERPRINT` | `--fingerprint sha256:HEX` |
 | Scan duration | `REMOTE_BLE_SCAN_DURATION` | command-specific duration |
 | Operation timeout | `REMOTE_BLE_OPERATION_TIMEOUT` | command-specific timeout where available |
 | Output | `REMOTE_BLE_OUTPUT` | `--output MODE`, `--json`, `--jsonl`, or `--quiet` |
@@ -85,6 +87,16 @@ The ordinary token comes from the environment variable named by
 ephemeral token to a one-shot command. It is unavailable for `shell` and `session`, and cannot be
 combined with a write payload read from stdin. An external credential manager may populate an
 environment variable, but the CLI does not read credential stores directly.
+
+## Encrypted agents
+
+RemoteBLE 0.14+ agents serving `wss://` present a self-signed identity, so a `wss://` endpoint needs
+`agent.fingerprint`: the `fp=sha256:…` value from the agent's pairing link (`--print-pairing`, or the
+QR code a phone agent shows). Copy only the host, port and `fp` into configuration; the link's
+`token=` value is a secret and belongs in the token environment variable. A fingerprint on a `ws://`
+endpoint is refused. Never replace a pinned fingerprint because a command failed with an identity
+mismatch (exit 4); ask the user to confirm the agent's identity was deliberately reset. The Linux
+native executable cannot use `wss://`; use the JVM distribution there.
 
 `agent.operatorTokenEnvironmentVariable` names the separate operator credential when operator
 status is explicitly requested; it falls back to `REMOTE_BLE_OPERATOR_TOKEN`. Ordinary and
