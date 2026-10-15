@@ -24,6 +24,7 @@ _remoteble() {
     '--profile=[configuration profile]:profile'
     '--endpoint=[agent WebSocket endpoint]:endpoint'
     '--client-id=[client identifier]:client id'
+    '--fingerprint=[pinned agent identity]:fingerprint'
     '--token-stdin[read the bearer token from standard input]'
     '--json[emit JSON]' '--jsonl[emit JSONL]' '--quiet[emit primary value]'
     '--output=[output mode]:mode:(human json jsonl hex base64 raw quiet)'
@@ -35,6 +36,7 @@ _remoteble() {
     '--profile=[configuration profile]:profile' \
     '--endpoint=[agent WebSocket endpoint]:endpoint' \
     '--client-id=[client identifier]:client id' \
+    '--fingerprint=[pinned agent identity]:fingerprint' \
     '--token-stdin[read the bearer token from standard input]' \
     '--json[emit JSON]' '--jsonl[emit JSONL]' '--quiet[emit primary value]' \
     '--output=[output mode]:mode:(human json jsonl hex base64 raw quiet)' \

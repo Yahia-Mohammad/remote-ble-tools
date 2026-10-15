@@ -115,6 +115,13 @@ class WebSocketAgentTransport(
     private var session: DefaultClientWebSocketSession? = null
     private var closed = false
 
+    /**
+     * Why the transport gave up without retrying, when it did: a pinned-identity mismatch. `null`
+     * while connecting, connected, or after an ordinary give-up.
+     */
+    var terminalFailure: Exception? = null
+        private set
+
     override suspend fun connect() {
         connectMutex.withLock {
             if (closed) throw TransportClosedException("transport closed")
@@ -122,6 +129,10 @@ class WebSocketAgentTransport(
             try {
                 openSession()
             } catch (e: Throwable) {
+                e.asTerminalConnectFailure()?.let { terminal ->
+                    giveUpOnTerminalFailure(terminal)
+                    throw terminal
+                }
                 if (reconnect.enabled && !closed) {
                     trace {
                         "initial connect failed, starting reconnect loop: ${e.message}"
@@ -257,7 +268,11 @@ class WebSocketAgentTransport(
                 }
                 trace { "reconnected after $attempt attempt(s) [cid=$clientId]" }
                 return
-            } catch (_: Throwable) {
+            } catch (e: Throwable) {
+                e.asTerminalConnectFailure()?.let { terminal ->
+                    giveUpOnTerminalFailure(terminal)
+                    return
+                }
                 if (maxAttempts != null && attempt >= maxAttempts) {
                     trace { "reconnect gave up after $attempt attempt(s) [cid=$clientId]" }
                     // Publish the give-up *before* the callback: an onGaveUp handler that reads
@@ -274,6 +289,19 @@ class WebSocketAgentTransport(
                 }
             }
         }
+    }
+
+    /**
+     * A pinned-identity mismatch fails every attempt identically, so retrying it only turns a
+     * security error into a loop that looks like an unreachable agent. Give up at once, whatever
+     * [reconnect] says.
+     */
+    private fun giveUpOnTerminalFailure(failure: Exception) {
+        trace { "${failure.message} [cid=$clientId]" }
+        if (closed) return
+        terminalFailure = failure
+        _state.value = TransportState.GAVE_UP
+        reconnect.onGaveUp?.invoke()
     }
 
     private companion object {

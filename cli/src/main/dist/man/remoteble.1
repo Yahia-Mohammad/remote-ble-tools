@@ -22,6 +22,10 @@ Override the agent WebSocket endpoint.
 .B --client-id ID
 Override the persisted client identity used for lease resumption.
 .TP
+.B --fingerprint sha256:HEX
+Pin a wss:// agent's TLS identity, as printed by the agent's --print-pairing. An agent presenting
+a different key is refused before the token is sent.
+.TP
 .B --token-stdin
 Read the bearer token from standard input. It cannot be combined with a stdin write payload,
 session, or shell.
@@ -105,6 +109,9 @@ Default configuration path.
 .TP
 .B REMOTE_BLE_LOG_DIR
 Directory for audit and debug logs.
+.TP
+.B REMOTE_BLE_FINGERPRINT
+Pinned agent identity for a wss:// endpoint, overriding agent.fingerprint.
 .SH FILES
 .TP
 .I dist/completions/remoteble.bash

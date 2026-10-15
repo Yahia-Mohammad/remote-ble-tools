@@ -14,6 +14,7 @@ dependencies {
     testImplementation(project(":core"))
     testImplementation(libs.ktor.client.cio)
     testImplementation(libs.ktor.client.websockets)
+    testImplementation(libs.serialization.json)
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.json.schema.validator) {
@@ -35,7 +36,7 @@ val configuredAgent: File? = ((project.findProperty("remoteble.agent.jar") as St
     ?.takeIf { it.isNotBlank() }
     ?.let { rootProject.file(it) }
 
-val agentVersion = "0.12.0"
+val agentVersion = "0.15.0"
 val agentDirectory = layout.buildDirectory.dir("live-agent")
 val fetchedAgent = agentDirectory.map { it.file("remoteble-agent-$agentVersion-all.jar") }
 

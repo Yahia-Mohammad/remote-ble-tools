@@ -30,6 +30,28 @@ class SchemaValidationTest {
         )
     }
 
+    @Test fun `scan records accept the scan fields a 0_15 agent sends`() {
+        val fields = """"serviceData":{"0000180f-0000-1000-8000-00805f9b34fb":{"hex":"5a","base64":"Wg==","length":1}},""" +
+            """"txPower":-8,"connectable":false,"peripheralName":"Sensor""""
+        SchemaAssertions.assertValid(
+            "result-envelope-v1.json",
+            resultEnvelope("scan.result", """{"handle":"device-1","rssi":-50,"serviceUuids":["180f"],"manufacturerData":{},$fields}"""),
+        )
+        SchemaAssertions.assertValid(
+            "result-envelope-v1.json",
+            """{"schemaVersion":1,"type":"scan","data":[{"handle":"device-1","rssi":-50,"eventCount":1,"firstSeen":0,"lastSeen":0,"serviceUuids":["180f"],$fields}]}""",
+        )
+        SchemaAssertions.assertValid(
+            "session-output-v1.json",
+            """{"schemaVersion":1,"type":"stream.event","timestamp":"2026-08-14T00:00:00Z","sequence":1,"id":"g","streamId":1,"data":{"handle":"h","rssi":-50,"serviceUuids":["180f"],$fields}}""",
+        )
+        // Service data is bytes, so a bare hex string (the manufacturerData spelling) is refused.
+        SchemaAssertions.assertInvalid(
+            "result-envelope-v1.json",
+            resultEnvelope("scan.result", """{"handle":"device-1","rssi":-50,"serviceUuids":[],"manufacturerData":{},"serviceData":{"180f":"5a"}}"""),
+        )
+    }
+
     private companion object {
         fun resultEnvelope(type: String, data: String) =
             """{"schemaVersion":1,"type":"$type","timestamp":"2026-08-14T00:00:00Z","sequence":1,"data":$data}"""

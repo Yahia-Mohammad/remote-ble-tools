@@ -444,6 +444,31 @@
           ]
         }
       ]
+    },
+    {
+      "id": "sim-fields-1",
+      "advertisement": {
+        "name": "Warsha Fields (sim)",
+        "serviceUuids": ["180f"],
+        "serviceData": { "180f": "5a" },
+        "txPower": -8,
+        "connectable": false,
+        "rssi": -58,
+        "intervalMs": 100
+      },
+      "connect": { "latencyMs": 10 },
+      "services": [
+        {
+          "uuid": "180f",
+          "characteristics": [
+            {
+              "uuid": "2a19",
+              "properties": ["read"],
+              "read": { "static": "5a" }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

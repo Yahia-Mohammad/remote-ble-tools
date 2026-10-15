@@ -44,6 +44,10 @@ internal object LiveAgent {
     const val PTY_INTERRUPT_HANDLE = "sim-pty-interrupt-1"
     const val BROKEN_PIPE_HANDLE = "sim-broken-pipe-1"
     const val TWIN_NAME = "Warsha Twin (sim)"
+
+    /** Advertises the 0.15 `scan.fields` extras and refuses connections; scan-only. */
+    const val FIELDS_HANDLE = "sim-fields-1"
+    const val FIELDS_NAME = "Warsha Fields (sim)"
     const val HEART_RATE_SERVICE = "180d"
     const val MEASUREMENT_CHARACTERISTIC = "2a37"
     const val CONTROL_POINT_CHARACTERISTIC = "2a39"
@@ -57,11 +61,33 @@ internal object LiveAgent {
 
     val endpoint: String by lazy { "ws://127.0.0.1:$port/agent" }
 
+    /**
+     * A second agent from the same JAR serving `wss://` behind its own self-signed identity, as every
+     * RemoteBLE 0.14+ agent can and phone agents do by default. Started only by the TLS scenarios.
+     */
+    val tlsEndpoint: String by lazy { "wss://127.0.0.1:$tlsPort/agent" }
+
+    /** The identity the TLS agent logged at startup: what a user copies from `--print-pairing`. */
+    val tlsFingerprint: String by lazy {
+        ensureTlsStarted()
+        // The agent binds before it logs its identity, so an accepting port does not yet mean the
+        // line is in the log.
+        val identity = Regex("Agent identity: (sha256:[0-9a-f]{64})")
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(AGENT_START_SECONDS.toLong())
+        var fingerprint = identity.find(logs(TLS_LOG))?.groupValues?.get(1)
+        while (fingerprint == null && System.nanoTime() < deadline) {
+            Thread.sleep(100)
+            fingerprint = identity.find(logs(TLS_LOG))?.groupValues?.get(1)
+        }
+        checkNotNull(fingerprint) { "the TLS agent logged no identity: ${diagnostics(TLS_LOG)}" }
+    }
+
     private val agentJar: File? by lazy {
         System.getProperty("remoteble.agent.jar")?.takeIf { it.isNotBlank() }?.let(::File)?.takeIf { it.isFile }
     }
 
     private val port: Int by lazy { freePort() }
+    private val tlsPort: Int by lazy { freePort() }
 
     /**
      * The build points this at the module's build directory so CI can upload `agent.log` as failure
@@ -75,45 +101,58 @@ internal object LiveAgent {
         else Path.of(configured).also { Files.createDirectories(it) }
     }
 
-    private val process: Process by lazy { start() }
+    private val process: Process by lazy { start(tls = false) }
+    private val tlsProcess: Process by lazy { start(tls = true) }
 
     /** Starts the agent on first use and blocks until it accepts connections. */
     fun ensureStarted() {
         check(available) { "remoteble.agent.jar is not set or does not exist" }
-        check(process.isAlive || awaitPort(1)) { "agent exited during startup: ${diagnostics()}" }
+        check(process.isAlive || awaitPort(port, 1)) { "agent exited during startup: ${diagnostics(LOG)}" }
     }
 
-    fun logs(): String = runCatching { workspace.resolve("agent.log").toFile().readText() }.getOrDefault("")
+    fun ensureTlsStarted() {
+        check(available) { "remoteble.agent.jar is not set or does not exist" }
+        check(tlsProcess.isAlive || awaitPort(tlsPort, 1)) { "TLS agent exited during startup: ${diagnostics(TLS_LOG)}" }
+    }
 
-    private fun start(): Process {
+    fun logs(): String = logs(LOG)
+
+    private fun logs(name: String): String = runCatching { workspace.resolve(name).toFile().readText() }.getOrDefault("")
+
+    private fun start(tls: Boolean): Process {
+        val port = if (tls) tlsPort else port
+        val logName = if (tls) TLS_LOG else LOG
         val profile = copyResource("sim-acceptance.json")
         val policy = copyResource("acceptance-policy.json")
-        val log = workspace.resolve("agent.log").toFile()
+        val log = workspace.resolve(logName).toFile()
         val process = ProcessBuilder(
             // The JVM agent takes --port/--bind as flags; PORT is the Rust agent's variable and is
             // ignored here, which silently leaves it on the default port.
             javaExecutable(), "-jar", agentJar!!.absolutePath,
             "--bind", "127.0.0.1", "--port", port.toString(), "--simulate", profile.toString(),
+            *(if (tls) arrayOf("--tls") else emptyArray()),
         ).apply {
             // Named credentials give each acceptance identity its own principal, which is what the
             // agent's per-principal write policy and lease ownership are keyed on.
             environment()["REMOTE_BLE_TOKENS"] = "$PRIMARY_PRINCIPAL=$PRIMARY_TOKEN,secondary=$SECONDARY_TOKEN"
             environment()["REMOTE_BLE_OPERATOR_TOKEN"] = OPERATOR_TOKEN
             environment()["REMOTE_BLE_POLICY_FILE"] = policy.toString()
+            if (tls) environment()["REMOTE_BLE_IDENTITY_FILE"] = workspace.resolve("tls-identity.pem").toString()
             redirectErrorStream(true)
             redirectOutput(log)
         }.start()
         Runtime.getRuntime().addShutdownHook(Thread { process.destroyForcibly() })
-        check(awaitPort(AGENT_START_SECONDS)) {
+        check(awaitPort(port, AGENT_START_SECONDS)) {
             process.destroyForcibly()
-            "agent did not accept connections on $port within ${AGENT_START_SECONDS}s: ${diagnostics()}"
+            "agent did not accept connections on $port within ${AGENT_START_SECONDS}s: ${diagnostics(logName)}"
         }
         return process
     }
 
-    private fun diagnostics(): String = logs().lineSequence().take(40).joinToString("\n").ifBlank { "(no agent output)" }
+    private fun diagnostics(logName: String): String =
+        logs(logName).lineSequence().take(40).joinToString("\n").ifBlank { "(no agent output)" }
 
-    private fun awaitPort(seconds: Int): Boolean {
+    private fun awaitPort(port: Int, seconds: Int): Boolean {
         val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(seconds.toLong())
         while (System.nanoTime() < deadline) {
             runCatching { Socket("127.0.0.1", port).close() }.onSuccess { return true }
@@ -137,4 +176,6 @@ internal object LiveAgent {
     private fun freePort(): Int = ServerSocket(0).use { it.localPort }
 
     private const val AGENT_START_SECONDS = 60
+    private const val LOG = "agent.log"
+    private const val TLS_LOG = "agent-tls.log"
 }

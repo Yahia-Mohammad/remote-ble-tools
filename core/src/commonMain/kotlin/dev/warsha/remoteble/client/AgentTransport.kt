@@ -1,5 +1,6 @@
 package dev.warsha.remoteble.client
 
+import dev.warsha.remoteble.protocol.AgentFingerprint
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -56,3 +57,35 @@ interface AgentTransport {
 
 /** Thrown by [AgentTransport.send] when the link is not (or no longer) usable. */
 class TransportClosedException(message: String? = null) : Exception(message)
+
+/**
+ * The agent at the other end presented a different identity from the one this client pinned: its
+ * TLS key's fingerprint is not [expected]. Either the agent reset its identity, or something else
+ * is answering at its address.
+ *
+ * Raised inside the TLS handshake, before any HTTP request, so the bearer token is never sent to
+ * whoever presented [presented]. It is not retried: the transport goes [TransportState.GAVE_UP] at
+ * once and [AgentTransport.connect] throws it. Pin the new fingerprint only after confirming the
+ * reset was intended.
+ */
+class AgentIdentityMismatchException(
+    val expected: AgentFingerprint,
+    val presented: AgentFingerprint?,
+) : Exception(
+    "Agent identity mismatch: pinned $expected, but the agent presented ${presented ?: "no usable key"}. " +
+        "The agent's identity was reset, or another host is answering at its address; update the " +
+        "pinned fingerprint only if the reset was intended.",
+)
+
+/** A connect failure that every retry would repeat, so the transport stops instead of looping. */
+internal fun Throwable.asTerminalConnectFailure(): Exception? {
+    var current: Throwable? = this
+    repeat(MAX_CAUSE_DEPTH) {
+        val t = current ?: return null
+        if (t is AgentIdentityMismatchException) return t
+        current = t.cause?.takeIf { it !== t }
+    }
+    return null
+}
+
+private const val MAX_CAUSE_DEPTH = 16

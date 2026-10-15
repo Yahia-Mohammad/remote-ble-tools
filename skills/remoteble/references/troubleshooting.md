@@ -9,12 +9,12 @@ completely different responses.
 | Code | Name | Usual cause | Action |
 |---|---|---|---|
 | 2 | Usage | Wrong flags or arguments | Fix the command. Retrying it unchanged cannot help |
-| 4 | Authentication | Token missing, wrong, or lacking operator scope | Check the token environment variable. Ask a human; do not guess credentials |
+| 4 | Authentication | Token missing, wrong, or lacking operator scope; or the `wss://` agent's identity does not match the pinned fingerprint | Check the token environment variable, or read the mismatch message. Ask a human; do not guess credentials or re-pin |
 | 5 | Not found | Stale handle, characteristic absent, or an ambiguous selector | Re-scan for a fresh handle; `inspect` to confirm the characteristic exists |
 | 6 | Busy | Another client holds the lease, or no free slots | Report the holder from the envelope. Wait; do not poll aggressively |
-| 7 | Unsupported | Capability absent, or policy refused | **Permanent.** Check `agent capabilities`. Never retry, never work around |
+| 7 | Unsupported | Capability absent, policy refused, or `wss://` on the Linux native build | **Permanent.** Check `agent capabilities`. Never retry, never work around |
 | 8 | Indeterminate | Reply lost after a write was dispatched | **Never retry.** Read back, or escalate. See safety.md |
-| 9 | Retryable | Transport, timeout, radio off | Retry with backoff. If it persists, check the agent is reachable |
+| 9 | Retryable | Transport, timeout, radio off, or a `wss://` agent with no pinned fingerprint | Retry with backoff. If it persists, check the agent is reachable and the endpoint scheme and fingerprint match it |
 | 1 | Failure | Anything else | Read the message |
 
 ## By error kind
@@ -50,7 +50,15 @@ cannot.
 
 **Everything fails with exit 9.** The agent is not reachable. Check the endpoint (`--endpoint`, or
 `agent.endpoint` in config, default `ws://127.0.0.1:8080/agent`), that the agent process is running,
-and that the network path allows a WebSocket.
+and that the network path allows a WebSocket. An agent started with `--tls`, and any phone agent with
+**Encrypt connections** on, serves only `wss://`: point a `ws://` endpoint at it and the connection
+fails. A `wss://` endpoint fails too until `agent.fingerprint` pins the agent's identity; the error
+then says so.
+
+**Exit 4 with "Agent identity mismatch".** The `wss://` agent presented a key other than the pinned
+fingerprint, and the CLI refused it before sending the token. Either the agent's identity was reset
+or a different host is answering. Do not update the fingerprint to make the error go away; ask the
+human who runs the agent to confirm the reset and supply the new `fp=` value.
 
 **Exit 4 on every command.** The token is missing or wrong. The CLI reads it from the environment
 variable named by `agent.tokenEnvironmentVariable`, `REMOTE_BLE_TOKEN` by default. Never pass a

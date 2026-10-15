@@ -1,5 +1,6 @@
 package dev.warsha.remoteble.tools.core
 
+import dev.warsha.remoteble.protocol.AgentFingerprint
 import kotlin.time.Duration
 import kotlinx.serialization.Serializable
 
@@ -25,6 +26,7 @@ data class AgentProfileConfig(
     val tokenEnvironmentVariable: String? = null,
     val clientId: String? = null,
     val operatorTokenEnvironmentVariable: String? = null,
+    val fingerprint: String? = null,
 )
 
 @Serializable
@@ -47,6 +49,12 @@ data class AgentConfig(
     val tokenEnvironmentVariable: String = "REMOTE_BLE_TOKEN",
     val clientId: String? = null,
     val operatorTokenEnvironmentVariable: String? = null,
+    /**
+     * The agent's TLS identity, `sha256:<64 hex>`, as RemoteBLE 0.14+ agents print it. Pins a
+     * `wss://` [endpoint]: the agent is trusted exactly when its key hashes to this, with no
+     * certificate authority consulted. Not a secret.
+     */
+    val fingerprint: String? = null,
 )
 
 @Serializable
@@ -102,6 +110,7 @@ private fun AgentProfileConfig.mergeOnto(base: AgentConfig) = AgentConfig(
     tokenEnvironmentVariable = tokenEnvironmentVariable ?: base.tokenEnvironmentVariable,
     clientId = clientId ?: base.clientId,
     operatorTokenEnvironmentVariable = operatorTokenEnvironmentVariable ?: base.operatorTokenEnvironmentVariable,
+    fingerprint = fingerprint ?: base.fingerprint,
 )
 
 private fun DefaultsProfileConfig.mergeOnto(base: DefaultsConfig) = DefaultsConfig(
@@ -122,9 +131,17 @@ private fun PolicyProfileConfig.mergeOnto(base: PolicyConfig) = PolicyConfig(
     writeRateWindow = writeRateWindow ?: base.writeRateWindow,
 )
 
-fun FileConfig.resolve(endpointOverride: String? = null, clientIdOverride: String? = null): ResolvedConfig =
+fun FileConfig.resolve(
+    endpointOverride: String? = null,
+    clientIdOverride: String? = null,
+    fingerprintOverride: String? = null,
+): ResolvedConfig =
     ResolvedConfig(
-        agent = agent.copy(endpoint = endpointOverride ?: agent.endpoint, clientId = (clientIdOverride ?: agent.clientId)?.let(::validateClientIdentity)),
+        agent = agent.copy(
+            endpoint = endpointOverride ?: agent.endpoint,
+            clientId = (clientIdOverride ?: agent.clientId)?.let(::validateClientIdentity),
+            fingerprint = (fingerprintOverride ?: agent.fingerprint)?.let(::validateFingerprint),
+        ).also(::validateEndpointPin),
         scanDuration = Duration.parse(defaults.scanDuration),
         operationTimeout = Duration.parse(defaults.operationTimeout),
         policy = policy,
@@ -149,5 +166,20 @@ fun PolicyConfig.allowsWrite(
             runCatching { normalizeUuid(rule.characteristicUuid) == normalizeUuid(characteristicUuid) }.getOrDefault(false) &&
             payloadBytes <= rule.maximumBytes &&
             withResponse in rule.withResponse
+    }
+}
+
+/** Normalizes a configured fingerprint to the lower-case form agents print, or refuses it. */
+fun validateFingerprint(value: String): String =
+    AgentFingerprint.parseOrNull(value)?.toString()
+        ?: throw CliFailure(ExitCode.USAGE, "agent.fingerprint must be sha256: followed by 64 hex digits, got '$value'")
+
+/**
+ * A fingerprint pins a TLS key, so it means nothing on a cleartext endpoint. Refusing the pair
+ * catches the likelier mistake: an agent switched to `--tls` while the endpoint still says `ws://`.
+ */
+fun validateEndpointPin(agent: AgentConfig) {
+    if (agent.fingerprint != null && !agent.endpoint.trim().startsWith("wss://", ignoreCase = true)) {
+        throw CliFailure(ExitCode.USAGE, "agent.fingerprint pins a wss:// agent, but the endpoint is ${agent.endpoint}")
     }
 }

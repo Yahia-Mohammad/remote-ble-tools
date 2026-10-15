@@ -27,6 +27,13 @@ kotlin {
             implementation(libs.ktor.client.cio)
             implementation(libs.ktor.client.websockets)
         }
+        // wss:// needs a platform engine; see AgentHttpClient.kt for why CIO cannot serve it.
+        jvmMain.dependencies {
+            implementation(libs.ktor.client.okhttp)
+        }
+        macosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
+        }
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
