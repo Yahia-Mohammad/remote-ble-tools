@@ -12,7 +12,8 @@
         "endpoint": { "type": "string" },
         "tokenEnvironmentVariable": { "type": "string" },
         "operatorTokenEnvironmentVariable": { "type": "string" },
-        "clientId": { "type": "string", "minLength": 8, "maxLength": 128 }
+        "clientId": { "type": "string", "minLength": 8, "maxLength": 128 },
+        "fingerprint": { "type": "string", "pattern": "^[Ss][Hh][Aa]256:[0-9A-Fa-f]{64}$" }
       }
     },
     "defaults": {
