@@ -23,6 +23,8 @@ internal class CliRunner(
     private val token: String = LiveAgent.PRIMARY_TOKEN,
     private val clientId: String = "acceptance-client-a",
     private val extraEnvironment: Map<String, String> = emptyMap(),
+    /** Defaults to the cleartext live agent; the TLS scenarios point this at the `wss://` one. */
+    private val endpoint: String? = null,
 ) {
     val logDirectory: Path = Files.createTempDirectory("remoteble-acceptance-logs")
 
@@ -38,7 +40,7 @@ internal class CliRunner(
     fun run(vararg arguments: String): CliResult = run(arguments.toList(), stdin = null)
 
     private fun command(arguments: List<String>): List<String> =
-        listOf("java", "-jar", PackagedCli.launcher().toString(), "--endpoint", LiveAgent.endpoint) + arguments
+        listOf("java", "-jar", PackagedCli.launcher().toString(), "--endpoint", endpoint ?: LiveAgent.endpoint) + arguments
 
     private fun environment(): Map<String, String> = mapOf(
         "REMOTE_BLE_TOKEN" to token,
