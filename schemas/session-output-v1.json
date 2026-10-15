@@ -37,7 +37,7 @@
     "closedCommand": { "type": "object", "additionalProperties": false, "required": ["closed"], "properties": { "closed": { "const": true } } },
     "started": { "type": "object", "additionalProperties": false, "required": ["command"], "properties": { "command": { "enum": ["scan", "observe"] } } },
     "streamEvent": { "oneOf": [ { "$ref": "#/$defs/advertisement" }, { "$ref": "#/$defs/bytes" } ] },
-    "advertisement": { "type": "object", "additionalProperties": false, "required": ["handle", "rssi", "serviceUuids"], "properties": { "handle": { "type": "string", "minLength": 1 }, "name": { "type": "string" }, "rssi": { "type": "integer" }, "serviceUuids": { "type": "array", "items": { "type": "string" } } } },
+    "advertisement": { "type": "object", "additionalProperties": false, "required": ["handle", "rssi", "serviceUuids"], "properties": { "handle": { "type": "string", "minLength": 1 }, "name": { "type": "string" }, "rssi": { "type": "integer" }, "serviceUuids": { "type": "array", "items": { "type": "string" } }, "serviceData": { "type": "object", "additionalProperties": { "$ref": "#/$defs/bytes" } }, "txPower": { "type": "integer" }, "connectable": { "type": "boolean" }, "peripheralName": { "type": "string" } } },
     "closed": { "type": "object", "additionalProperties": false, "required": ["count", "reason"], "properties": { "count": { "type": "integer", "minimum": 0 }, "reason": { "enum": ["count", "complete", "timeout", "stopped", "error", "slow-consumer"] } } },
     "sessionClosed": { "type": "object", "additionalProperties": false, "required": ["sessionId"], "properties": { "sessionId": { "type": "string", "minLength": 1 } } }
   }

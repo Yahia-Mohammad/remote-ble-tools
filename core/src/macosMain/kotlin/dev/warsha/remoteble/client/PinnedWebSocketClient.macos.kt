@@ -1,0 +1,105 @@
+@file:OptIn(ExperimentalForeignApi::class)
+
+package dev.warsha.remoteble.client
+
+import dev.warsha.remoteble.protocol.AgentFingerprint
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.darwin.Darwin
+import io.ktor.client.plugins.HttpSend
+import io.ktor.client.plugins.plugin
+import io.ktor.client.plugins.websocket.WebSockets
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.ByteVar
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.convert
+import kotlinx.cinterop.readBytes
+import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.usePinned
+import platform.CoreCrypto.CC_SHA256
+import platform.CoreCrypto.CC_SHA256_DIGEST_LENGTH
+import platform.CoreFoundation.CFArrayGetCount
+import platform.CoreFoundation.CFArrayGetValueAtIndex
+import platform.CoreFoundation.CFDataGetBytePtr
+import platform.CoreFoundation.CFDataGetLength
+import platform.CoreFoundation.CFRelease
+import platform.Foundation.NSURLAuthenticationMethodServerTrust
+import platform.Foundation.NSURLCredential
+import platform.Foundation.NSURLSessionAuthChallengeCancelAuthenticationChallenge
+import platform.Foundation.NSURLSessionAuthChallengePerformDefaultHandling
+import platform.Foundation.NSURLSessionAuthChallengeUseCredential
+import platform.Foundation.credentialForTrust
+import platform.Foundation.serverTrust
+import platform.Security.SecCertificateCopyData
+import platform.Security.SecCertificateRef
+import platform.Security.SecTrustCopyCertificateChain
+import platform.Security.SecTrustRef
+
+/**
+ * macOS: Ktor's Darwin engine, whose NSURLSession challenge handler accepts the server trust
+ * only when the leaf certificate's SPKI hashes to the pin; host names are not checked.
+ *
+ * NSURLSession reports a cancelled challenge as a generic cancellation, so the handler records the
+ * mismatch against the host and port it came from, and the next failure of a request to that origin
+ * raises [AgentIdentityMismatchException] in its place, which the transport treats as terminal. Keyed
+ * so that a request to some other address, failing for its own reason, is never reported as this.
+ */
+internal fun pinnedWebSocketHttpClient(fingerprint: AgentFingerprint): HttpClient {
+    val refused = PendingRefusals()
+    val client = HttpClient(Darwin) {
+        engine {
+            // The dispositions are NSInteger, which Ktor's shared Darwin metadata commonizes to a
+            // width of its own; convert() adapts each to whatever the handler expects.
+            handleChallenge { _, _, challenge, completionHandler ->
+                val space = challenge.protectionSpace
+                val trust = space.serverTrust
+                if (space.authenticationMethod != NSURLAuthenticationMethodServerTrust || trust == null) {
+                    completionHandler(NSURLSessionAuthChallengePerformDefaultHandling.convert(), null)
+                } else {
+                    val presented = leafFingerprint(trust)
+                    if (presented == fingerprint) {
+                        completionHandler(NSURLSessionAuthChallengeUseCredential.convert(), NSURLCredential.credentialForTrust(trust))
+                    } else {
+                        refused.record(PendingRefusals.origin(space.host, space.port), AgentIdentityMismatchException(fingerprint, presented))
+                        completionHandler(NSURLSessionAuthChallengeCancelAuthenticationChallenge.convert(), null)
+                    }
+                }
+            }
+        }
+        install(WebSockets)
+    }
+    client.plugin(HttpSend).intercept { request ->
+        try {
+            execute(request)
+        } catch (failure: Throwable) {
+            throw refused.take(PendingRefusals.origin(request.url.host, request.url.port)) ?: failure
+        }
+    }
+    return client
+}
+
+/** The fingerprint of the certificate the server presented first, or `null` if it is unreadable. */
+private fun leafFingerprint(trust: SecTrustRef): AgentFingerprint? {
+    val chain = SecTrustCopyCertificateChain(trust) ?: return null
+    try {
+        if (CFArrayGetCount(chain) < 1) return null
+        val leaf: SecCertificateRef = CFArrayGetValueAtIndex(chain, 0)?.reinterpret() ?: return null
+        val data = SecCertificateCopyData(leaf) ?: return null
+        val der = try {
+            val length = CFDataGetLength(data).toInt()
+            CFDataGetBytePtr(data)?.reinterpret<ByteVar>()?.readBytes(length) ?: return null
+        } finally {
+            CFRelease(data)
+        }
+        return certificateSpki(der)?.let { AgentFingerprint.ofSpkiSha256(sha256(it)) }
+    } finally {
+        CFRelease(chain)
+    }
+}
+
+private fun sha256(bytes: ByteArray): ByteArray {
+    val digest = UByteArray(CC_SHA256_DIGEST_LENGTH)
+    bytes.usePinned { input ->
+        digest.usePinned { output -> CC_SHA256(input.addressOf(0), bytes.size.convert(), output.addressOf(0)) }
+    }
+    return digest.toByteArray()
+}

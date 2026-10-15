@@ -116,7 +116,11 @@
         "eventCount": { "type": "integer", "minimum": 1 },
         "firstSeen": { "type": "integer", "minimum": 0 },
         "lastSeen": { "type": "integer", "minimum": 0 },
-        "serviceUuids": { "type": "array", "items": { "type": "string" } }
+        "serviceUuids": { "type": "array", "items": { "type": "string" } },
+        "serviceData": { "$ref": "#/$defs/serviceData" },
+        "txPower": { "type": "integer" },
+        "connectable": { "type": "boolean" },
+        "peripheralName": { "type": "string" }
       }
     },
     "advertisement": {
@@ -132,8 +136,17 @@
           "type": "object",
           "patternProperties": { "^[0-9]+$": { "type": "string", "pattern": "^(?:[0-9a-fA-F]{2})*$" } },
           "additionalProperties": false
-        }
+        },
+        "serviceData": { "$ref": "#/$defs/serviceData" },
+        "txPower": { "type": "integer" },
+        "connectable": { "type": "boolean" },
+        "peripheralName": { "type": "string" }
       }
+    },
+    "serviceData": {
+      "description": "Service data by service UUID, from an agent advertising scan.fields (RemoteBLE 0.15+).",
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/bytes" }
     },
     "device": {
       "type": "object",
@@ -252,7 +265,8 @@
             "endpoint": { "type": "string" },
             "clientId": { "type": "string" },
             "tokenEnvironmentVariable": { "type": "string" },
-            "operatorTokenEnvironmentVariable": { "type": "string" }
+            "operatorTokenEnvironmentVariable": { "type": "string" },
+            "fingerprint": { "type": "string" }
           }
         },
         "policy": {

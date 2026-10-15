@@ -3,6 +3,7 @@
 package dev.warsha.remoteble.tools.cli
 
 import dev.warsha.remoteble.protocol.ScanFilter
+import dev.warsha.remoteble.tools.core.putScanFields
 import dev.warsha.remoteble.tools.core.AgentFeature
 import dev.warsha.remoteble.tools.core.CliFailure
 import dev.warsha.remoteble.tools.core.ExitCode
@@ -770,6 +771,7 @@ private fun decodeHexSession(value: String): ByteArray {
 private fun dev.warsha.remoteble.protocol.AdvertisementDto.json(): JsonObject = buildJsonObject {
     put("handle", device.value); name?.let { put("name", it.replace(Regex("[\\u0000-\\u001f\\u007f]"), "?")) }; put("rssi", rssi)
     put("serviceUuids", kotlinx.serialization.json.buildJsonArray { serviceUuids.forEach { add(JsonPrimitive(it)) } })
+    putScanFields(this@json)
 }
 
 private fun dev.warsha.remoteble.protocol.AgentStatusDto.jsonForSession(): JsonObject = buildJsonObject {

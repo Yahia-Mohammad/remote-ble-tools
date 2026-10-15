@@ -11,4 +11,7 @@ policy:
 profiles:
   lab:
     agent:
-      endpoint: ws://192.0.2.10:8080/agent
+      # RemoteBLE 0.14+ agents reached over the network serve wss:// behind a self-signed
+      # identity; pin the fp= value the agent prints with --print-pairing.
+      endpoint: wss://192.0.2.10:8080/agent
+      fingerprint: sha256:8bddc8daceca6b001bd79b40cea6d53df1a570711087b25f426c9b711a2b98a4

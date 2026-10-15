@@ -114,6 +114,10 @@ first launch prompts once for Bluetooth access. Homebrew also refuses casks from
 until it is trusted, which is what the `brew trust` line is for; formulae need no such step. The
 build is ad-hoc signed, so the prompt returns after an upgrade.
 
+An agent reached over the network serves `wss://` behind its own self-signed identity (RemoteBLE
+0.14+). Pin it with `agent.fingerprint` or `--fingerprint`, using the `fp=` value the agent prints
+with `--print-pairing`; see [Encrypted agents](docs/cli-reference.md#encrypted-agents).
+
 ## Release automation
 
 Pushing a stable `vX.Y.Z` tag builds and publishes the GitHub Release, the Linux packages, signed

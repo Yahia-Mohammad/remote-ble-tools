@@ -11,8 +11,8 @@ _remoteble() {
     fi
 
     local commands='agent scan connect disconnect inspect read descriptor rssi observe write report session shell config skills'
-    local global='--config --profile --endpoint --client-id --token-stdin --json --jsonl --quiet --output --log-level --generate-completion --help --version'
-    local child_global='--config --profile --endpoint --client-id --token-stdin --json --jsonl --quiet --output --log-level --help'
+    local global='--config --profile --endpoint --client-id --fingerprint --token-stdin --json --jsonl --quiet --output --log-level --generate-completion --help --version'
+    local child_global='--config --profile --endpoint --client-id --fingerprint --token-stdin --json --jsonl --quiet --output --log-level --help'
 
     case "$prev" in
         --config) if declare -F _filedir >/dev/null; then _filedir yaml; else COMPREPLY=( $(compgen -f -- "$cur") ); fi; return ;;

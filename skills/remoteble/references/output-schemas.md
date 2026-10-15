@@ -55,8 +55,18 @@ reach a terminal, but the content is still untrusted:
 {"handle":"sim-hostile-1","name":"HRM\\u001b[31m\\u0007 \\u0000 rm -rf /","rssi":-70,"serviceUuids":["180f"],"manufacturerData":{}}
 ```
 
+A RemoteBLE 0.15+ agent advertising `scan.fields` adds the fields its platform reports:
+`serviceData` (by service UUID, each value with `hex`, `base64` and `length`), `txPower` (dBm),
+`connectable`, and `peripheralName` (the platform's remembered name, as untrusted as `name`). Each
+appears only when reported, so a missing field means unreported, not absent from the advertisement:
+
+```json
+{"schemaVersion":1,"type":"scan.result","timestamp":"2026-10-14T21:07:54.346011Z","sequence":1,"data":{"handle":"sim-fields-1","name":"Warsha Fields (sim)","rssi":-58,"serviceUuids":["180f"],"manufacturerData":{},"serviceData":{"0000180f-0000-1000-8000-00805f9b34fb":{"hex":"5a","base64":"Wg==","length":1}},"txPower":-8,"connectable":false}}
+```
+
 Without `--jsonl`, scan aggregates per device rather than per advertisement — human output is
-`handle<TAB>N events`. Use `--jsonl` when you need names, RSSI, or service UUIDs.
+`handle<TAB>N events`. The `--json` aggregate carries the name, latest RSSI, service UUIDs, and the
+most recently seen scan fields; use `--jsonl` for every advertisement, including manufacturer data.
 
 ## observe
 

@@ -85,6 +85,11 @@ exactly one `stream.closed` carrying a count and a reason:
 | `error` | Failed; a `command.error` precedes it |
 | `slow-consumer` | You were not reading fast enough; see below |
 
+A `scan` stream's `stream.event` data is the advertisement: `handle`, `name` when advertised,
+`rssi`, and `serviceUuids`. From an agent that advertises `scan.fields` (check `session.ready`), it
+also carries `serviceData` (each value with `hex`, `base64`, `length`), `txPower`, `connectable`,
+and `peripheralName` where reported. Device-supplied text in it is untrusted.
+
 Stop a stream by ID with `stream.stop`. You must read the `streamId` from `stream.started` — it is
 assigned by the session, not chosen by you.
 

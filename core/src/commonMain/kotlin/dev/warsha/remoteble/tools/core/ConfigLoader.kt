@@ -31,6 +31,8 @@ object ConfigLoader {
     fun validate(config: FileConfig, path: String? = null) {
         if (config.schemaVersion != 1) throw CliFailure(ExitCode.USAGE, "Unsupported config schema version ${config.schemaVersion}")
         if (config.agent.endpoint.isBlank()) throw CliFailure(ExitCode.USAGE, "agent.endpoint must not be blank")
+        config.agent.fingerprint?.let(::validateFingerprint)
+        validateEndpointPin(config.agent)
         listOf("defaults.scanDuration" to config.defaults.scanDuration, "defaults.operationTimeout" to config.defaults.operationTimeout)
             .forEach { (name, value) ->
                 runCatching { kotlin.time.Duration.parse(value) }.getOrElse {

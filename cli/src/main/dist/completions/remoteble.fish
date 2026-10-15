@@ -27,6 +27,7 @@ for command in remoteble rble
     complete -c $command -l profile -r
     complete -c $command -l endpoint -r
     complete -c $command -l client-id -r
+    complete -c $command -l fingerprint -r
     complete -c $command -l output -r -a 'human json jsonl hex base64 raw quiet'
     complete -c $command -l log-level -r -a 'audit debug'
     complete -c $command -l generate-completion -r -a 'bash fish zsh'

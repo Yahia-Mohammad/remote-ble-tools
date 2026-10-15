@@ -1,5 +1,6 @@
 package dev.warsha.remoteble.tools.core
 
+import dev.warsha.remoteble.client.AgentIdentityMismatchException
 import dev.warsha.remoteble.client.AgentSession
 import dev.warsha.remoteble.client.DefaultAgentSession
 import dev.warsha.remoteble.client.ReconnectPolicy
@@ -10,6 +11,7 @@ import dev.warsha.remoteble.client.RetryPolicies
 import dev.warsha.remoteble.client.SessionReadiness
 import dev.warsha.remoteble.client.TransportState
 import dev.warsha.remoteble.client.WebSocketAgentTransport
+import dev.warsha.remoteble.protocol.AgentFingerprint
 import dev.warsha.remoteble.protocol.CborProtocolCodec
 import dev.warsha.remoteble.protocol.AgentStatusDto
 import dev.warsha.remoteble.protocol.Capabilities
@@ -47,8 +49,6 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.websocket.WebSockets
 
 class RemoteBleGateway internal constructor(
     val session: AgentSession,
@@ -57,6 +57,10 @@ class RemoteBleGateway internal constructor(
     private val timeouts: RemoteTimeouts,
     /** The concrete stable id sent on every reconnect and recorded in audit metadata. */
     override val clientId: String,
+    /** Why the transport gave up without retrying, if it did; see [WebSocketAgentTransport.terminalFailure]. */
+    private val terminalFailure: () -> Exception? = { null },
+    /** Appended to a failed connection's message; names the likeliest fix for this configuration. */
+    private val connectHint: String? = null,
 ) : AutoCloseable, WriteGateway {
     /** A protocol stream whose stop operation has a stable id and can be acknowledged. */
     class ManagedStream<T> internal constructor(
@@ -93,12 +97,20 @@ class RemoteBleGateway internal constructor(
         throw when {
             readiness == SessionReadiness.INCOMPATIBLE_PROTOCOL || state == TransportState.INCOMPATIBLE_PROTOCOL ->
                 CliFailure(ExitCode.UNSUPPORTED, "the agent and this client share no supported protocol version")
-            else -> CliFailure(ExitCode.RETRYABLE, "the agent connection failed before $what completed")
+            else -> terminalConnectFailure() ?: CliFailure(ExitCode.RETRYABLE, "the agent connection failed before $what completed".withConnectHint())
         }
     }
 
     private fun TransportState.isTerminal(): Boolean =
         this == TransportState.GAVE_UP || this == TransportState.INCOMPATIBLE_PROTOCOL
+
+    private fun String.withConnectHint(): String = connectHint?.let { "$this; $it" } ?: this
+
+    /** A pinned-identity mismatch is a refused agent, not a network blip: never retryable. */
+    private fun terminalConnectFailure(): CliFailure? = when (val failure = terminalFailure()) {
+        is AgentIdentityMismatchException -> CliFailure(ExitCode.AUTHENTICATION, failure.message.orEmpty(), failure)
+        else -> null
+    }
 
     /**
      * Waits for a usable session before the first op is dispatched. Every entry point needs this:
@@ -123,7 +135,7 @@ class RemoteBleGateway internal constructor(
         throw when {
             readiness == SessionReadiness.INCOMPATIBLE_PROTOCOL || state == TransportState.INCOMPATIBLE_PROTOCOL ->
                 CliFailure(ExitCode.UNSUPPORTED, "the agent and this client share no supported protocol version")
-            else -> CliFailure(ExitCode.RETRYABLE, "the agent connection failed before the session was ready")
+            else -> terminalConnectFailure() ?: CliFailure(ExitCode.RETRYABLE, "the agent connection failed before the session was ready".withConnectHint())
         }
     }
 
@@ -268,11 +280,16 @@ class RemoteBleGateway internal constructor(
     }
 
     companion object {
+        private const val UNPINNED_TLS_HINT =
+            "a RemoteBLE 0.14+ agent serving wss:// presents a self-signed identity, so pin it with " +
+                "--fingerprint or agent.fingerprint (the fp= value the agent prints with --print-pairing)"
+
         private val CLI_CAPABILITIES: Set<String> = setOf(
             Capabilities.AGENT_STATUS,
             Capabilities.CONNECTION_SLOTS,
             Capabilities.WRITE_POLICY,
             Capabilities.LEASE_HOLDER,
+            Capabilities.SCAN_FIELDS,
             Capabilities.DESCRIPTORS,
             Capabilities.RSSI,
             Capabilities.SCAN_BATCH,
@@ -289,8 +306,8 @@ class RemoteBleGateway internal constructor(
             ordinaryTokenOverride: String? = null,
             operatorToken: String? = null,
         ): RemoteBleGateway {
+            val http = agentHttpClient(config.agent.endpoint, config.agent.fingerprint?.let(AgentFingerprint::parse))
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-            val http = HttpClient(CIO) { install(WebSockets) }
             val token = { ordinaryTokenOverride ?: environmentVariable(config.agent.tokenEnvironmentVariable) }
             val resolvedClientId = config.agent.clientId ?: persistedClientIdentity()
             val transport = WebSocketAgentTransport(
@@ -310,7 +327,11 @@ class RemoteBleGateway internal constructor(
                 retryPolicyFor = { op -> if (op.isIdempotent) RetryPolicies.maxAttempts(2) else RetryPolicies.None },
                 identifierFormat = IdentifierFormat.STRING,
             )
-            return RemoteBleGateway(session, scope, http, RemoteTimeouts(op = config.operationTimeout), resolvedClientId)
+            return RemoteBleGateway(
+                session, scope, http, RemoteTimeouts(op = config.operationTimeout), resolvedClientId,
+                terminalFailure = { transport.terminalFailure },
+                connectHint = UNPINNED_TLS_HINT.takeIf { isEncryptedEndpoint(config.agent.endpoint) && config.agent.fingerprint == null },
+            )
         }
     }
 }
