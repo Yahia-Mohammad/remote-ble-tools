@@ -23,6 +23,22 @@ Native changes need the matching target test. On a matching host, also run:
 ./gradlew :integration-tests:nativeLockHandoffTest
 ```
 
+## Dependency locks
+
+Every configuration is locked, so changing a dependency or a version in
+`gradle/libs.versions.toml` means regenerating the lockfiles and committing them with the change:
+
+```sh
+./gradlew resolveDependencies --write-locks
+```
+
+CI runs the same command and fails if any lockfile changes. Resolving without `--write-locks` does
+not catch a stale lock: Gradle keeps the locked version, and the build quietly ignores the catalog.
+Dependabot updates only the catalog, so its pull requests usually need this before they pass.
+
+Regenerate on any host. A configuration a host cannot resolve, such as a macOS-only native target
+on Linux, keeps the entries another host wrote for it.
+
 ## Change expectations
 
 - Preserve the versioned schemas in `schemas/`, stable exit codes, and the JSONL session contract.
