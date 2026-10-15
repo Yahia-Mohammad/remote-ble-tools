@@ -54,7 +54,7 @@ kotlin {
             @OptIn(KotlinNativeCacheApi::class)
             binaries.configureEach {
                 disableNativeCache(
-                    DisableCacheInKotlinVersion.`2_4_10`,
+                    DisableCacheInKotlinVersion.`2_4_20`,
                     "clikt 5.x defines Context.selfAndAncestors in both clikt and clikt-mordant; " +
                         "cached, ld.lld sees it twice and linkDebugTestLinux*64 fails",
                 )
