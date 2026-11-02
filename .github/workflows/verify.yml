@@ -102,13 +102,9 @@ jobs:
             integration-tests/build/live-agent-run/agent.log
 
   native-macos:
-    # TEMPORARY -- REVERT TO `runs-on: macos-15` WHEN THIS REPO GOES PUBLIC.
-    # Self-hosted only to avoid the 10x macOS billing while the repo is still private. Public repos
-    # get free Actions minutes, and a self-hosted runner on a public repo is a security hole (fork
-    # PRs would execute arbitrary code on the Mac). Revert this block and the timeout below together.
     needs: version
-    runs-on: [self-hosted, macOS, apple]
-    timeout-minutes: 120  # relaxed for the local runner; restore to 30 on revert
+    runs-on: macos-15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
@@ -132,9 +128,9 @@ jobs:
           # arguments outright, and `brew install` rejects any formula that is not in a tap.
           # Both therefore resolve the formula by name. Stage it in a
           # throwaway tap; the cleanup step below removes it even when this step fails, which
-          # matters on the self-hosted runner where /opt/homebrew persists between jobs.
-          # The runner can also retain the release-tap formula from an earlier run; Homebrew
-          # cannot install the throwaway-tap formula until that copy is removed.
+          # matters wherever /opt/homebrew outlives the job, such as a developer Mac running
+          # these steps. Such a machine can also hold the release-tap formula; Homebrew cannot
+          # install the throwaway-tap formula until that copy is removed.
           HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall --force remoteble 2>/dev/null || true
           brew untap remoteble/formula-check 2>/dev/null || true
           brew tap-new --no-git remoteble/formula-check
@@ -155,9 +151,9 @@ jobs:
           HOMEBREW_NO_AUTO_UPDATE=1 brew test remoteble/formula-check/remoteble
           HOMEBREW_NO_AUTO_UPDATE=1 brew reinstall --formula remoteble/formula-check/remoteble
           HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall --force remoteble
-      # The self-hosted runner shares one /opt/homebrew across jobs, so a failure part-way
-      # through the smoke test would otherwise leave the tap (and possibly an installed
-      # remoteble) behind and poison the next run.
+      # Hosted runners are discarded after the job, but on any machine whose /opt/homebrew
+      # persists a failure part-way through the smoke test would otherwise leave the tap (and
+      # possibly an installed remoteble) behind and poison the next run.
       - name: Clean up Homebrew state
         if: always()
         shell: bash
