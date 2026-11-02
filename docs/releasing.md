@@ -79,10 +79,12 @@ published release is the last resort, not the first move.
 
 ## Notes that are easy to rediscover the hard way
 
-- The macOS jobs run on a self-hosted runner, which shares one `/opt/homebrew` with its owner's
-  machine. Formula checks address the tap by name for that reason: with the real tap installed, a
-  bare `remoteble` is ambiguous and `brew style` reports the rendered formula as a duplicate of the
-  tapped one.
+- The macOS jobs run on GitHub's hosted `macos-15` runners. They ran on a self-hosted Mac while the
+  repository was private, and must not go back now that it is public: a fork's pull request could
+  run code on that machine. Formula checks still address the tap by name, because on a machine with
+  the real tap installed a bare `remoteble` is ambiguous and `brew style` reports the rendered
+  formula as a duplicate of the tapped one. Homebrew 7 refuses formulae from an untrusted tap, so
+  the checks `brew trust` their throwaway tap and untrust it afterwards.
 - Attestations, dependency review, and downloading release assets anonymously all require the
   repository to be public.
 - The agent's macOS cask in the tap is updated by hand, and does not follow this repository's
