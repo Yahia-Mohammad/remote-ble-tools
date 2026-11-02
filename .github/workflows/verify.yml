@@ -138,6 +138,9 @@ jobs:
           HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall --force remoteble 2>/dev/null || true
           brew untap remoteble/formula-check 2>/dev/null || true
           brew tap-new --no-git remoteble/formula-check
+          # Homebrew 7 refuses to load a formula from a tap it does not trust. An explicit
+          # `brew install` trusts the formula it names, but `brew audit` does not.
+          brew trust --tap remoteble/formula-check
           cp "$RUNNER_TEMP/remoteble.rb" "$(brew --repository remoteble/formula-check)/Formula/remoteble.rb"
           # Style the staged copy, not the loose file. `brew style <path>` analyses that file
           # alongside every tapped formula, so once a machine has the real tap installed the
@@ -161,6 +164,9 @@ jobs:
         run: |
           HOMEBREW_NO_AUTO_UPDATE=1 brew uninstall --force remoteble 2>/dev/null || true
           brew untap remoteble/formula-check 2>/dev/null || true
+          # Trust is kept in ~/.homebrew/trust.json and outlives the untap.
+          brew untrust --tap remoteble/formula-check 2>/dev/null || true
+          brew untrust --formula remoteble/formula-check/remoteble 2>/dev/null || true
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: remoteble-formula
