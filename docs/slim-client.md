@@ -33,7 +33,7 @@ depend on `dev.warsha.remoteble:client-sdk`, Kable, Koin, or a local Bluetooth i
 - App-facing peripheral factories and APIs not called by the CLI.
 
 The extracted sources are derived from Remote BLE Transport 0.11.0, with the TLS pinning added in
-0.14, and are verified against the 0.15.0 agent by the live-agent suite. They are covered by the root
+0.14, and are verified against the 0.15.1 agent by the live-agent suite. They are covered by the root
 `LICENSE` and `NOTICE`. When the wire protocol changes, update the protocol models, codec vectors,
 session handshake, and agent compatibility tests together. Do not copy the complete app-facing SDK
 back into this repository.
